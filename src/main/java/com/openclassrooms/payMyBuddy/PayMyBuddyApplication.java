@@ -3,10 +3,13 @@ package com.openclassrooms.payMyBuddy;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import java.util.Optional;
 
 @SpringBootApplication
 public class PayMyBuddyApplication implements CommandLineRunner {
@@ -22,9 +25,13 @@ public class PayMyBuddyApplication implements CommandLineRunner {
 	}
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
 
-        Iterable<User> users = userService.getUsers();
-        users.forEach(user -> System.out.println(user.getUsername()));
+        Optional<User> optUser = userService.getUserById(1);
+        User userId1 = optUser.get();
+        System.out.println(userId1.getUsername());
+
+
     }
 }
