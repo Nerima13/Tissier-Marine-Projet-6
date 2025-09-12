@@ -19,7 +19,8 @@ public class Transaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @Column(name = "id")
+    private int id;
 
     @ManyToOne
     @JoinColumn(name = "sender_id")
@@ -29,12 +30,12 @@ public class Transaction {
     @JoinColumn(name = "receiver_id")
     private User receiver;
 
-    @Column(length = 100)
+    @Column(name = "description")
     private String description;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(name = "amount")
     private BigDecimal amount;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 }
