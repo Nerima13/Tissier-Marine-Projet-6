@@ -1,6 +1,5 @@
 package com.openclassrooms.payMyBuddy.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,7 +25,7 @@ public class User {
     @Column(name = "email", nullable = false, length = 25, unique = true)
     private String email;
 
-    @Column(name = "password", nullable = false, length = 25)
+    @Column(name = "password", nullable = false, length = 100)
     private String password;
 
     @ManyToMany

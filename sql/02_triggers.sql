@@ -47,7 +47,7 @@ CREATE TABLE `transactions` (
   `sender_id` int DEFAULT NULL,
   `receiver_id` int DEFAULT NULL,
   `description` varchar(100) DEFAULT NULL,
-  `amount` decimal(10,0) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `transaction_sender_idx` (`sender_id`),
@@ -131,4 +131,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-10 17:27:13
+-- Dump completed on 2025-09-12 17:02:04
