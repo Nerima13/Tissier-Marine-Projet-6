@@ -2,6 +2,7 @@ package com.openclassrooms.payMyBuddy.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,6 +19,7 @@ public class SpringSecurityConfig {
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .permitAll())
+                .oauth2Login(Customizer.withDefaults())
                 .logout(logout -> logout.permitAll());
 
         return http.build();
