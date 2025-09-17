@@ -3,6 +3,7 @@ package com.openclassrooms.payMyBuddy.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +28,9 @@ public class User {
 
     @Column(name = "password", nullable = false, length = 100)
     private String password;
+
+    @Column(name = "balance", nullable = false, precision = 10, scale = 2)
+    private BigDecimal balance = BigDecimal.ZERO;
 
     @ManyToMany
     @JoinTable(

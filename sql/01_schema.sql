@@ -86,6 +86,7 @@ CREATE TABLE `users` (
   `username` varchar(25) NOT NULL,
   `email` varchar(25) NOT NULL,
   `password` varchar(100) NOT NULL,
+  `balance` decimal(10,2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`),
   UNIQUE KEY `email_UNIQUE` (`email`),
   UNIQUE KEY `username_UNIQUE` (`username`)
@@ -101,4 +102,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-15 15:47:15
+-- Dump completed on 2025-09-17 13:58:50
