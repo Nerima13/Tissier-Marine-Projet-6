@@ -31,10 +31,16 @@ public class UserService {
     }
 
     public Optional<User> getUserById(Integer id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Id must not be null.");
+        }
         return userRepository.findById(id);
     }
 
     public Optional<User> getUserByEmail(String email) {
+        if (email == null) {
+            throw new IllegalArgumentException("Email must not be null.");
+        }
         return userRepository.findByEmail(email);
     }
 
