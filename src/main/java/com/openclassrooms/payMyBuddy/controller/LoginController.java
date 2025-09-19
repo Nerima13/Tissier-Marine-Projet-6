@@ -1,88 +1,66 @@
 package com.openclassrooms.payMyBuddy.controller;
-
-import com.openclassrooms.payMyBuddy.model.User;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+ import com.openclassrooms.payMyBuddy.service.UserService;
+ import org.springframework.security.core.Authentication;
+ import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.security.Principal;
 import java.util.Map;
 
-@RestController
+@Controller
 public class LoginController {
 
-    private final OAuth2AuthorizedClientService authorizedClientService;
+    private final UserService userService;
 
-    public LoginController(OAuth2AuthorizedClientService authorizedClientService) {
-        this.authorizedClientService = authorizedClientService;
+    public LoginController(UserService userService) {
+        this.userService = userService;
     }
 
-    @GetMapping("/user")
-    public String getUser() {
-        return "Welcome, User";
+    // Login page
+    @GetMapping("/login")
+    public String login(Model model) {
+        return "login"; // => templates/login.html
     }
 
+    // Home page after login
     @GetMapping("/")
-    public String getUserInfo(Principal user, @AuthenticationPrincipal OidcUser oidcUser) {
-        StringBuffer userInfo = new StringBuffer();
-        if (user instanceof UsernamePasswordAuthenticationToken) {
-            userInfo.append(getUsernamePasswordLoginInfo(user));
-        } else if(user instanceof OAuth2AuthenticationToken) {
-            userInfo.append(getOAuth2LoginInfo(user, oidcUser));
+    public String home(Authentication authentication) {
+        if (authentication == null) {
+            return "redirect:/login";
         }
-        return userInfo.toString();
-    }
 
-    private StringBuffer getUsernamePasswordLoginInfo(Principal user) {
-        StringBuffer usernameInfo = new StringBuffer();
-        UsernamePasswordAuthenticationToken token = (UsernamePasswordAuthenticationToken) user;
-        if (token.isAuthenticated()) {
-            User u = (User) token.getPrincipal();
-            usernameInfo.append("Welcome, " + u.getUsername());
-        } else {
-            usernameInfo.append("NA");
-        }
-        return usernameInfo;
-    }
+        if (authentication instanceof OAuth2AuthenticationToken) {
+            OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
 
-    private StringBuffer getOAuth2LoginInfo(Principal user, OidcUser oidcUser) {
-        StringBuffer protectedInfo = new StringBuffer();
+            // Account information (Google, GitHub…)
+            Map<String, Object> infos = authToken.getPrincipal().getAttributes();
 
-        OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) user;
-        OAuth2AuthorizedClient client =
-                authorizedClientService.loadAuthorizedClient(
-                        authToken.getAuthorizedClientRegistrationId(),
-                        authToken.getName());
+            // Email (safe extraction)
+            Object emailObj = infos.get("email");
+            String email = (emailObj != null) ? emailObj.toString() : null;
 
-        if (authToken.isAuthenticated() && client != null) {
-            Map<String, Object> userAttributes =
-                    ((OAuth2User) authToken.getPrincipal()).getAttributes();
+            // Name (check several keys depending on the provider)
+            String name = extractName(infos);
 
-            String accessToken = client.getAccessToken().getTokenValue();
-
-            protectedInfo.append("Welcome, ").append(userAttributes.get("name")).append("<br><br>");
-            protectedInfo.append("e-mail: ").append(userAttributes.get("email")).append("<br><br>");
-            protectedInfo.append("Access token: ").append(accessToken);
-
-            OidcIdToken idToken = oidcUser.getIdToken();
-            if (idToken != null) {
-                protectedInfo.append("idToken value : " + idToken.getTokenValue() + "<br>");
-                protectedInfo.append("Token mapped values <br>");
-                Map<String, Object> claims = idToken.getClaims();
-                for(String key : claims.keySet()) {
-                    protectedInfo.append(" " + key + " : " + claims.get(key) + "<br>");
-                }
+            if (email == null) {
+                return "redirect:/login"; // cannot create a user without email
             }
-        } else {
-            protectedInfo.append("NA");
+
+            // Create user if necessary (business logic in the service)
+            userService.getOrCreateOAuth2User(email, name);
+
+            return "redirect:/transfer";
         }
-        return protectedInfo;
+
+        return "redirect:/login";
+    }
+
+    // Extract a display name depending on the provider
+    private String extractName(Map<String, Object> infos) {
+        Object n1 = infos.get("name");                // Google
+        Object n2 = infos.get("login");               // GitHub
+        if (n1 != null) return String.valueOf(n1);
+        if (n2 != null) return String.valueOf(n2);
+        return null;
     }
 }

@@ -61,6 +61,28 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public User getOrCreateOAuth2User(String email, String name) {
+        if (email == null) {
+            throw new IllegalArgumentException("Email must not be null.");
+        }
+
+        Optional<User> existing = userRepository.findByEmail(email);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        User u = new User();
+        u.setEmail(email);
+        if (name == null || name.isEmpty()) {
+            u.setUsername(email);
+        } else {
+            u.setUsername(name);
+        }
+        u.setPassword("password");
+
+        return registerUser(u);
+    }
+
     /* --- PROTOTYPE ---
        - Send money to any already-registered user
        - No commission
