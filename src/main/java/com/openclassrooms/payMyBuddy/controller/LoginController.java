@@ -29,38 +29,49 @@ public class LoginController {
             return "redirect:/login";
         }
 
-        if (authentication instanceof OAuth2AuthenticationToken) {
-            OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
+        // OAuth2 (Google / GitHub / Facebook)
+        if (authentication instanceof OAuth2AuthenticationToken token) {
+            Map<String, Object> attrs = token.getPrincipal().getAttributes();
 
-            // Account information (Google, GitHub…)
-            Map<String, Object> infos = authToken.getPrincipal().getAttributes();
-
-            // Email (safe extraction)
-            Object emailObj = infos.get("email");
-            String email = (emailObj != null) ? emailObj.toString() : null;
-
-            // Name (check several keys depending on the provider)
-            String name = extractName(infos);
-
-            if (email == null) {
-                return "redirect:/login"; // cannot create a user without email
+            // Required email (we need it to create or find the user)
+            String email = null;
+            if (attrs.get("email") != null) {
+                String e = attrs.get("email").toString().trim().toLowerCase();
+                if (!e.isEmpty()) {
+                    email = e;
+                }
+            }
+            if (email == null) { // without email we cannot create a user
+                return "redirect:/login";
             }
 
-            // Create user if necessary (business logic in the service)
-            userService.getOrCreateOAuth2User(email, name);
+            // Display name if available (optional)
+            String name = null;
+            if (attrs.get("name") != null) {
+                name = attrs.get("name").toString().trim();       // Google / Facebook
+            } else if (attrs.get("login") != null) {
+                name = attrs.get("login").toString().trim();      // GitHub handle
+            } else {
+                String given = attrs.get("given_name") != null ? attrs.get("given_name").toString().trim() : null;
+                String family = attrs.get("family_name") != null ? attrs.get("family_name").toString().trim() : null;
 
-            return "redirect:/transfer";
+                // Facebook fallback for last name
+                if ((family == null || family.isEmpty()) && attrs.get("last_name") != null) {
+                    String last = attrs.get("last_name").toString().trim();
+                    if (!last.isEmpty()) family = last;
+                }
+                if ((given != null && !given.isEmpty()) || (family != null && !family.isEmpty())) {
+                    name = ((given != null ? given : "") + " " + (family != null ? family : "")).trim();
+                }
+            }
+            if (name == null || name.isEmpty()) {
+                name = email; // last simple and safe fallback
+            }
+
+            // Create or retrieve the user
+            userService.getOrCreateOAuth2User(email, name);
         }
 
-        return "redirect:/login";
-    }
-
-    // Extract a display name depending on the provider
-    private String extractName(Map<String, Object> infos) {
-        Object n1 = infos.get("name");                // Google
-        Object n2 = infos.get("login");               // GitHub
-        if (n1 != null) return String.valueOf(n1);
-        if (n2 != null) return String.valueOf(n2);
-        return null;
+        return "redirect:/transfer";
     }
 }
