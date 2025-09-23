@@ -4,8 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -36,31 +36,30 @@ public class User {
     @JoinTable(
             name = "user_connections",
             joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "connection_id")
+            inverseJoinColumns = @JoinColumn(name = "connection_id"),
+            uniqueConstraints = @UniqueConstraint(name = "uk_user_connections_pair", columnNames = {"user_id", "connection_id"}
+            )
     )
     @ToString.Exclude
-    private List<User> connections = new ArrayList<>();
+    private Set<User> connections = new HashSet<>();
 
     @ManyToMany(mappedBy = "connections")
     @ToString.Exclude
-    private List<User> connected = new ArrayList<>();
+    private Set<User> connected = new HashSet<>();
 
 
     // HELPERS
     public void addConnection(User other) {
         if (other == null || other == this) return;
-
-        if (!this.connections.contains(other)) {
-            this.connections.add(other);
-        }
-        if (!other.connected.contains(this)) {
+        if (this.connections.add(other)) {
             other.connected.add(this);
         }
     }
 
     public void removeConnection(User other) {
         if (other == null) return;
-        this.connections.remove(other);
-        other.connected.remove(this);
+        if (this.connections.remove(other)) {
+            other.connected.remove(this);
+        }
     }
 }

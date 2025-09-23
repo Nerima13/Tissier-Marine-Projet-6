@@ -5,25 +5,26 @@ import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.repository.TransactionRepository;
 import com.openclassrooms.payMyBuddy.repository.UserRepository;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final TransactionRepository transactionRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
+    public UserService(UserRepository userRepository, TransactionRepository transactionRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.transactionRepository = transactionRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     // Basic read operations
     public Iterable<User> getUsers() {
@@ -41,22 +42,26 @@ public class UserService {
         if (email == null) {
             throw new IllegalArgumentException("Email must not be null.");
         }
-        return userRepository.findByEmail(email);
+        return userRepository.findByEmail(email.trim().toLowerCase());
     }
 
     // Registration : unique email, hashed password, balance initialized to 0.00 if null
     public User registerUser(User user) {
-        userRepository.findByEmail(user.getEmail()).ifPresent(u -> {
+        if (user == null || user.getEmail() == null || user.getPassword() == null) {
+            throw new IllegalArgumentException("User, email and password must not be null.");
+        }
+
+        String normalizedEmail = user.getEmail().trim().toLowerCase();
+        userRepository.findByEmail(normalizedEmail).ifPresent(u -> {
             throw new IllegalArgumentException("This email already exists.");
         });
 
+        user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        if (user.getBalance() == null) {
-            user.setBalance(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
-        } else {
-            user.setBalance(user.getBalance().setScale(2, RoundingMode.HALF_UP));
-        }
+        BigDecimal balance = (user.getBalance() == null) ? BigDecimal.ZERO : user.getBalance();
+
+        user.setBalance(balance.setScale(2, RoundingMode.HALF_UP));
 
         return userRepository.save(user);
     }
@@ -66,19 +71,17 @@ public class UserService {
             throw new IllegalArgumentException("Email must not be null.");
         }
 
-        Optional<User> existing = userRepository.findByEmail(email);
+        String normalizedEmail = email.trim().toLowerCase();
+
+        Optional<User> existing = userRepository.findByEmail(normalizedEmail);
         if (existing.isPresent()) {
             return existing.get();
         }
 
         User u = new User();
-        u.setEmail(email);
-        if (name == null || name.isEmpty()) {
-            u.setUsername(email);
-        } else {
-            u.setUsername(name);
-        }
-        u.setPassword("password");
+        u.setEmail(normalizedEmail);
+        u.setUsername((name == null || name.trim().isEmpty()) ? normalizedEmail : name.trim());
+        u.setPassword(UUID.randomUUID().toString()); // random strong password so form-login cannot guess it
 
         return registerUser(u);
     }
@@ -107,8 +110,14 @@ public class UserService {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found : id = " + senderId));
 
-        User receiver = userRepository.findByEmail(receiverEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Receiver not found : " + receiverEmail));
+        if (receiverEmail == null) {
+            throw new IllegalArgumentException("Receiver email must not be null.");
+        }
+
+        String recEmail = receiverEmail.trim().toLowerCase();
+
+        User receiver = userRepository.findByEmail(recEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Receiver not found : " + recEmail));
 
         if (sender.getId().equals(receiver.getId())) {
             throw new IllegalArgumentException("You cannot send money to yourself.");
@@ -128,8 +137,28 @@ public class UserService {
         t.setSender(sender);
         t.setReceiver(receiver);
         t.setAmount(a);
-        t.setDescription(description != null ? description : "Transfer to " + receiver.getEmail());
+        t.setDescription((description == null || description.trim().isEmpty()) ? ("Transfer to " + receiver.getEmail()) : description.trim());
 
         return transactionRepository.save(t);
+    }
+
+    @Transactional
+    public void addConnection(String ownerEmail, String friendEmail) {
+        if (ownerEmail == null || friendEmail == null) {
+            throw new IllegalArgumentException("Emails must not be null.");
+        }
+        String meEmail = ownerEmail.trim().toLowerCase();
+        String frEmail = friendEmail.trim().toLowerCase();
+        if (meEmail.equals(frEmail)) {
+            throw new IllegalArgumentException("You cannot add yourself.");
+        }
+
+        User me = userRepository.findByEmail(meEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + meEmail));
+        User friend = userRepository.findByEmail(frEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Friend not found: " + frEmail));
+
+        me.addConnection(friend); // updates join table
+        userRepository.save(me);
     }
 }
