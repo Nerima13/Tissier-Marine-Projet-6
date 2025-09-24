@@ -24,7 +24,7 @@ public class DashboardController {
         this.transactionService = transactionService;
     }
 
-    // Page tableau de bord (solde, amis, historique)
+    // Dashboard page (balance, friends, history)
     @GetMapping("/transfer")
     public String showDashboard(Authentication authentication, Model model) {
         String email = resolveEmail(authentication);
@@ -41,7 +41,7 @@ public class DashboardController {
         return "dashboard"; // => templates/dashboard.html
     }
 
-    // Ajouter un ami par e-mail
+    // Add a friend by email
     @PostMapping("/connections")
     public String addFriend(@ModelAttribute("friendForm") FriendForm form, Authentication authentication, Model model) {
         String currentEmail = resolveEmail(authentication);
@@ -67,7 +67,7 @@ public class DashboardController {
         return showDashboard(authentication, model);
     }
 
-    // Effectuer un virement
+    // Make a transfer
     @PostMapping("/transfer")
     public String doTransfer(@ModelAttribute("transferForm") TransferForm form,
                              Authentication authentication,
@@ -93,7 +93,7 @@ public class DashboardController {
         return showDashboard(authentication, model);
     }
 
-    // Récupère l'email selon le type d'authentification (form login ou OAuth2)
+    // Resolve the user's email depending on the authentication type (form login or OAuth2)
     private String resolveEmail(Authentication authentication) {
         if (authentication == null) return null;
         if (authentication instanceof OAuth2AuthenticationToken) {
@@ -105,7 +105,7 @@ public class DashboardController {
             }
             return null;
         } else {
-            String name = authentication.getName(); // pour le form login = email
+            String name = authentication.getName(); // for form login this is the email
             return name == null ? null : name.trim().toLowerCase();
         }
     }

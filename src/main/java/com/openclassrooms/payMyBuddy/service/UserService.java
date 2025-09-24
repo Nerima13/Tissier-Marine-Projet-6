@@ -161,4 +161,57 @@ public class UserService {
         me.addConnection(friend); // updates join table
         userRepository.save(me);
     }
+
+    @Transactional
+    public User updateProfile(String currentEmail, String newUsername, String newEmail, String currentPassword, String newPassword, String confirmPassword) {
+
+        if (currentEmail == null) {
+            throw new IllegalArgumentException("Email must not be null.");
+        }
+
+        // Fetch current user by email
+        User me = getUserByEmail(currentEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentEmail));
+
+        // Username
+        if (newUsername != null) {
+            String u = newUsername.trim();
+            if (!u.isEmpty()) {
+                me.setUsername(u);
+            }
+        }
+
+        // Email
+        if (newEmail != null) {
+            String normalized = newEmail.trim().toLowerCase();
+            if (!normalized.isBlank() && !normalized.equals(me.getEmail())) {
+                userRepository.findByEmail(normalized).ifPresent(other -> {
+                    if (!other.getId().equals(me.getId())) {
+                        throw new IllegalArgumentException("This email already exists.");
+                    }
+                });
+                me.setEmail(normalized);
+                // Note: the current session remains bound to the old email until the user signs in again.
+            }
+        }
+
+        // Password
+        boolean wantsPwdChange = newPassword != null && !newPassword.isBlank();
+        if (wantsPwdChange) {
+            if (currentPassword == null || currentPassword.isBlank()) {
+                throw new IllegalArgumentException("Please enter your current password.");
+            }
+            if (!passwordEncoder.matches(currentPassword, me.getPassword())) {
+                throw new IllegalArgumentException("Current password is incorrect.");
+            }
+            if (!newPassword.equals(confirmPassword)) {
+                throw new IllegalArgumentException("Password confirmation does not match.");
+            }
+            if (newPassword.length() < 8) {
+                throw new IllegalArgumentException("New password must be at least 8 characters.");
+            }
+            me.setPassword(passwordEncoder.encode(newPassword));
+        }
+        return userRepository.save(me);
+    }
 }

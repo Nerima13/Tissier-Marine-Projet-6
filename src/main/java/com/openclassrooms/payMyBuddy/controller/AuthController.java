@@ -67,7 +67,7 @@ public class AuthController {
             return "register";
         }
 
-        // 4) Success → go to default Spring login page
+        // 4) Success = go to default Spring login page
         return "redirect:/login";
     }
 }
