@@ -44,6 +44,9 @@ public class TransactionService {
     }
 
     public List<Transaction> getFeedForUser(Integer userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User id must not be null.");
+        }
         return transactionRepository.findBySenderIdOrReceiverIdOrderByCreatedAtDesc(userId, userId);
     }
 }

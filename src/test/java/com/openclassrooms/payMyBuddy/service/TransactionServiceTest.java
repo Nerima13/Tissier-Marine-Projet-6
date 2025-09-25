@@ -103,7 +103,7 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void getReceivedByUser_validId_returnsTransactionsFromRepository() {
+    public void getReceivedByUser_validId_returnsTransactionsFromRepository() {
         Transaction t1 = new Transaction();
         t1.setId(21);
         Transaction t2 = new Transaction();
@@ -122,7 +122,7 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void getReceivedByUser_nullId_throwsException() {
+    public void getReceivedByUser_nullId_throwsException() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> transactionService.getReceivedByUser(null));
 
@@ -131,7 +131,7 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void getFeedForUser_validId_returnsTransactionsFromRepository() {
+    public void getFeedForUser_validId_returnsTransactionsFromRepository() {
         Transaction t1 = new Transaction();
         t1.setId(1);
         Transaction t2 = new Transaction();
@@ -148,5 +148,14 @@ public class TransactionServiceTest {
         assertEquals(2, result.size());
         assertEquals(1, result.get(0).getId());
         assertEquals(2, result.get(1).getId());
+    }
+
+    @Test
+    public void getFeedForUser_nullId_throwsException() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> transactionService.getFeedForUser(null));
+
+        assertEquals("User id must not be null.", ex.getMessage());
+        verifyNoInteractions(transactionRepository);
     }
 }
