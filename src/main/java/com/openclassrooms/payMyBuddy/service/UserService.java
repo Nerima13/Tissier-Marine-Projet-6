@@ -163,6 +163,27 @@ public class UserService {
     }
 
     @Transactional
+    public void removeConnection(String ownerEmail, String friendEmail) {
+        if (ownerEmail == null || friendEmail == null) {
+            throw new IllegalArgumentException("Emails must not be null.");
+        }
+        String meEmail = ownerEmail.trim().toLowerCase();
+        String frEmail = friendEmail.trim().toLowerCase();
+        if (meEmail.equals(frEmail)) {
+            throw new IllegalArgumentException("You cannot remove yourself.");
+        }
+
+        User me = userRepository.findByEmail(meEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + meEmail));
+        User friend = userRepository.findByEmail(frEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Friend not found: " + frEmail));
+
+        // If friend is not in the connections, removeConnection will simply have no effect
+        me.removeConnection(friend);
+        userRepository.save(me);
+    }
+
+    @Transactional
     public User updateProfile(String currentEmail, String newUsername, String newEmail, String currentPassword, String newPassword, String confirmPassword) {
 
         if (currentEmail == null) {

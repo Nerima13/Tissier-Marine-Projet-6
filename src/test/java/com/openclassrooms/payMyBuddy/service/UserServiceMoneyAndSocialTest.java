@@ -169,8 +169,12 @@ class UserServiceMoneyAndSocialTest {
 
     @Test
     public void addConnection_success() {
-        User me = new User(); me.setId(1); me.setEmail("me@example.com");
-        User friend = new User(); friend.setId(2); friend.setEmail("friend@example.com");
+        User me = new User();
+        me.setId(1);
+        me.setEmail("me@example.com");
+        User friend = new User();
+        friend.setId(2);
+        friend.setEmail("friend@example.com");
 
         when(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(me));
         when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.of(friend));
@@ -205,5 +209,78 @@ class UserServiceMoneyAndSocialTest {
         when(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(new User()));
         when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.empty());
         assertThrows(IllegalArgumentException.class, () -> userService.addConnection("me@example.com", "friend@example.com"));
+    }
+
+    @Test
+    public void removeConnection_success() {
+        User me = new User();
+        me.setId(1);
+        me.setEmail("me@example.com");
+        User friend = new User();
+        friend.setId(2);
+        friend.setEmail("friend@example.com");
+
+        me.getConnections().add(friend);
+
+        when(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(me));
+        when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.of(friend));
+        when(userRepository.save(any(User.class))).then(returnsFirstArg());
+
+        userService.removeConnection("  ME@EXAMPLE.COM  ", "  FRIEND@example.com ");
+
+        assertFalse(me.getConnections().contains(friend));
+        verify(userRepository).findByEmail("me@example.com");
+        verify(userRepository).findByEmail("friend@example.com");
+        verify(userRepository).save(me);
+        verify(userRepository, never()).save(friend);
+    }
+
+    @Test
+    public void removeConnection_nullEmails_throws() {
+        IllegalArgumentException ex1 =
+                assertThrows(IllegalArgumentException.class, () -> userService.removeConnection(null, "x"));
+        assertEquals("Emails must not be null.", ex1.getMessage());
+
+        IllegalArgumentException ex2 =
+                assertThrows(IllegalArgumentException.class, () -> userService.removeConnection("x", null));
+        assertEquals("Emails must not be null.", ex2.getMessage());
+
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    public void removeConnection_self_throws() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.removeConnection("  Me@Example.com  ", "ME@example.COM"));
+        assertEquals("You cannot remove yourself.", ex.getMessage());
+
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    public void removeConnection_userNotFound_throws() {
+        when(userRepository.findByEmail("me@example.com")).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.removeConnection("me@example.com", "friend@example.com"));
+        assertEquals("User not found: me@example.com", ex.getMessage());
+
+        verify(userRepository).findByEmail("me@example.com");
+        verify(userRepository, never()).findByEmail("friend@example.com");
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    public void removeConnection_friendNotFound_throws() {
+        when(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(new User()));
+        when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.removeConnection("me@example.com", "friend@example.com"));
+        assertEquals("Friend not found: friend@example.com", ex.getMessage());
+
+        verify(userRepository).findByEmail("me@example.com");
+        verify(userRepository).findByEmail("friend@example.com");
+        verify(userRepository, never()).save(any());
     }
 }

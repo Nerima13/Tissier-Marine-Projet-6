@@ -12,7 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import java.util.Optional;
 
 @SpringBootApplication
-public class PayMyBuddyApplication implements CommandLineRunner {
+public class PayMyBuddyApplication {
 
     @Autowired
     private UserService userService;
@@ -23,15 +23,4 @@ public class PayMyBuddyApplication implements CommandLineRunner {
 	public static void main(String[] args) {
 		SpringApplication.run(PayMyBuddyApplication.class, args);
 	}
-
-    @Override
-    @Transactional
-    public void run(String... args) throws Exception {
-
-        Optional<User> optUser = userService.getUserById(1);
-        User userId1 = optUser.get();
-        System.out.println(userId1.getUsername());
-
-
-    }
 }
