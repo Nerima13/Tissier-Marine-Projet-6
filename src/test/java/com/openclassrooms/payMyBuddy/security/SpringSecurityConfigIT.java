@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(com.openclassrooms.payMyBuddy.config.TestUsersConfig.class)
-class SpringSecurityConfigIT {
+public class SpringSecurityConfigIT {
 
     @Autowired MockMvc mvc;
 

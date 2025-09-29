@@ -25,12 +25,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(DashboardController.class)
-class DashboardControllerIT {
+public class DashboardControllerIT {
 
     @Autowired MockMvc mvc;
 
     @MockBean UserService userService;
-    @MockBean TransactionService transactionService; // dépendance du controller
+    @MockBean TransactionService transactionService;
 
     @Test
     @WithMockUser(username = "user@example.com", roles = "USER")
@@ -38,7 +38,7 @@ class DashboardControllerIT {
         User me = new User(); me.setId(1); me.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
         when(userService.transfer(1, "friend@example.com", new BigDecimal("10.00"), "Coffee"))
-                .thenReturn(null); // le controller ne réutilise pas la valeur
+                .thenReturn(null); // the controller does not reuse the return value
 
         mvc.perform(post("/transfer")
                         .param("receiverEmail", "friend@example.com")
@@ -56,11 +56,16 @@ class DashboardControllerIT {
 
     @Test
     void add_connection_success_redirects_to_transfer_and_calls_service() throws Exception {
+        // Simulated OAuth2 auth: getName() = user@example.com
         Map<String, Object> attrs = new HashMap<>();
         attrs.put("email", "user@example.com");
-        attrs.put("sub", "user@example.com"); // ✅ getName() vaudra ceci
+        attrs.put("sub", "user@example.com"); // getName() will be this email
 
         List<GrantedAuthority> roles = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+
+        // The controller first looks up the current user
+        User me = new User(); me.setId(1); me.setEmail("user@example.com");
+        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
 
         mvc.perform(post("/connections")
                         .param("email", "friend@example.com")
@@ -71,8 +76,10 @@ class DashboardControllerIT {
                 .andExpect(status().isFound())
                 .andExpect(redirectedUrl("/transfer"));
 
+        verify(userService).getUserByEmail("user@example.com");
         verify(userService).addConnection("user@example.com", "friend@example.com");
         verifyNoMoreInteractions(userService);
         verifyNoInteractions(transactionService);
     }
+
 }
