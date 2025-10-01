@@ -1,0 +1,40 @@
+<!-- templates/fragments/navbar.html -->
+<nav xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="bg-white">
+    <div class="container py-3">
+        <div class="d-flex align-items-center gap-4 flex-wrap">
+            <!-- Marque -->
+            <a th:href="@{/transfer}" class="text-decoration-none text-body fw-semibold">Pay My Buddy</a>
+
+            <!-- Liens alignés sur une seule ligne -->
+            <ul class="nav">
+                <li class="nav-item">
+                    <a th:href="@{/transfer}"
+                       class="nav-link px-3"
+                       th:classappend="${active}=='transfer' ? 'text-primary fw-semibold' : 'text-body'">
+                        Transférer
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a th:href="@{/profile}"
+                       class="nav-link px-3"
+                       th:classappend="${active}=='profile' ? 'text-primary fw-semibold' : 'text-body'">
+                        Profil
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a th:href="@{/transfer}#add"
+                       class="nav-link px-3"
+                       th:classappend="${active}=='add' ? 'text-primary fw-semibold' : 'text-body'">
+                        Ajouter relation
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <form th:action="@{/logout}" method="post" class="d-inline">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                        <button type="submit" class="btn btn-link nav-link px-3 text-body p-0">Se déconnecter</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

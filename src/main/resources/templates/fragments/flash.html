@@ -1,0 +1,14 @@
+<!-- src/main/resources/templates/fragments/flash.html -->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body">
+    <div class="container my-3">
+        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span th:text="${error}">Une erreur est survenue.</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+
+        <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <span th:text="${success}">Action effectuée.</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+    </div>
+</div>

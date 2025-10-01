@@ -16,20 +16,18 @@ public class SpringSecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        // Open public pages and static assets
                         .requestMatchers("/login", "/register", "/css/**", "/js/**", "/images/**").permitAll()
                         .anyRequest().authenticated())
-                .formLogin(form -> form
 
-                        // Use custom login page
-                        // .loginPage("/login")
-                        // Where to go after successful login
+                .formLogin(form -> form
+                        .loginPage("/login")
                         .defaultSuccessUrl("/transfer", true)
                         .permitAll())
 
-                // OAuth2 will also use the same custom login page
-                // .oauth2Login(o -> o.loginPage("/login"))
-                .oauth2Login(Customizer.withDefaults())
+                .oauth2Login(oauth -> oauth
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/transfer", true))
+
                 .logout(logout -> logout
                         .logoutSuccessUrl("/login?logout")
                         .permitAll());
