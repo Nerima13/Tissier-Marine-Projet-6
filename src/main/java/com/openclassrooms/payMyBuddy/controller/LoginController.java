@@ -1,5 +1,6 @@
 package com.openclassrooms.payMyBuddy.controller;
  import com.openclassrooms.payMyBuddy.service.UserService;
+ import org.springframework.security.authentication.AnonymousAuthenticationToken;
  import org.springframework.security.core.Authentication;
  import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
  import org.springframework.stereotype.Controller;
@@ -18,7 +19,10 @@ public class LoginController {
 
     // Login page
     @GetMapping("/login")
-    public String login(Model model) {
+    public String login(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated() && !(authentication instanceof AnonymousAuthenticationToken)) {
+            return "redirect:/transfer";
+        }
         return "login"; // => templates/login.html
     }
 

@@ -31,11 +31,23 @@ public class LoginControllerTest {
     @InjectMocks
     LoginController controller;
 
-    // 1) GET /login => returns the "login" view
+    // 1) GET /login => returns "login" when NOT authenticated
     @Test
-    public void login_returnsLoginView() {
-        String view = controller.login(model);
+    public void login_returnsLoginView_whenNotAuthenticated() {
+        String view = controller.login(null); // no auth
         assertEquals("login", view);
+        verifyNoInteractions(userService);
+    }
+
+    // 1bis) GET /login => redirects to /transfer when ALREADY authenticated
+    @Test
+    public void login_redirectsToTransfer_whenAuthenticated() {
+        TestingAuthenticationToken auth = new TestingAuthenticationToken("user", "pass");
+        auth.setAuthenticated(true); // not an AnonymousAuthenticationToken
+
+        String view = controller.login(auth);
+
+        assertEquals("redirect:/transfer", view);
         verifyNoInteractions(userService);
     }
 
