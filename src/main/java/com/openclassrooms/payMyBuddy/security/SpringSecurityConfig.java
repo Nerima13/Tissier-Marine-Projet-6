@@ -29,6 +29,7 @@ public class SpringSecurityConfig {
                         .defaultSuccessUrl("/transfer", true))
 
                 .logout(logout -> logout
+                        .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
                         .permitAll());
 
