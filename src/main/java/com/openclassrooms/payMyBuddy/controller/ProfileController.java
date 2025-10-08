@@ -35,6 +35,8 @@ public class ProfileController {
             form.setEmail(me.getEmail());
             model.addAttribute("profileForm", form);
         }
+        model.addAttribute("active", "profile");
+
         return "profile"; // templates/profile.html
     }
 
@@ -56,8 +58,12 @@ public class ProfileController {
                 ra.addFlashAttribute("success", "Profile updated.");
             }
         } catch (IllegalArgumentException ex) {
+            ProfileForm safe = new ProfileForm();
+            safe.setUsername(form.getUsername());
+            safe.setEmail(form.getEmail());
+
             ra.addFlashAttribute("error", ex.getMessage());
-            ra.addFlashAttribute("profileForm", form);
+            ra.addFlashAttribute("profileForm", safe);
         }
         return "redirect:/profile";
     }

@@ -13,6 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.ui.ConcurrentModel;
 import org.springframework.ui.Model;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -96,111 +98,83 @@ public class DashboardControllerTest {
     // 4) POST /connections with null auth => redirect to /login
     @Test
     public void addFriend_whenAuthIsNull_redirectsToLogin() {
-        Model model = new ConcurrentModel();
+        RedirectAttributes ra = new RedirectAttributesModelMap();
         FriendForm form = new FriendForm();
 
-        String view = controller.addFriend(form, null, model);
+        String view = controller.addFriend(form, null, ra);
 
         assertEquals("redirect:/login", view);
+        assertTrue(ra.getFlashAttributes().isEmpty());
         verifyNoInteractions(userService, transactionService);
     }
 
     // 5) POST /connections with blank email => error and returns dashboard
     @Test
-    public void addFriend_whenEmailBlank_returnsDashboardWithError() {
-        Model model = new ConcurrentModel();
+    public void addFriend_whenEmailBlank_redirectsWithError() {
+        RedirectAttributes ra = new RedirectAttributesModelMap();
         FriendForm form = new FriendForm();
         form.setEmail("   "); // blank after trim
         TestingAuthenticationToken auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
-        User me = mock(User.class);
-        when(me.getId()).thenReturn(1);
-        when(me.getConnections()).thenReturn(Set.of());
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
-        when(transactionService.getFeedForUser(1)).thenReturn(List.of());
+        String view = controller.addFriend(form, auth, ra);
 
-        String view = controller.addFriend(form, auth, model);
-
-        assertEquals("dashboard", view);
-        assertEquals("Please enter a friend's email.", model.getAttribute("error"));
-        verify(userService).getUserByEmail("user@example.com");
-        verify(transactionService).getFeedForUser(1);
+        assertEquals("redirect:/connections", view);
+        assertEquals("Please enter a friend's email.", ra.getFlashAttributes().get("error"));
         verify(userService, never()).addConnection(anyString(), anyString());
-        verifyNoMoreInteractions(userService, transactionService);
+        verifyNoInteractions(userService, transactionService);
     }
 
-    // 6) POST /connections trying to add self => error and returns dashboard
+    // 6) POST /connections trying to add self => error and redirect to /connections
     @Test
-    public void addFriend_whenAddingSelf_returnsDashboardWithError() {
-        Model model = new ConcurrentModel();
+    public void addFriend_whenAddingSelf_redirectsWithError() {
+        RedirectAttributes ra = new RedirectAttributesModelMap();
         FriendForm form = new FriendForm();
         form.setEmail(" USER@EXAMPLE.COM "); // same as current user, different case/spacing
         TestingAuthenticationToken auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
-        User me = mock(User.class);
-        when(me.getId()).thenReturn(1);
-        when(me.getConnections()).thenReturn(Set.of());
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
-        when(transactionService.getFeedForUser(1)).thenReturn(List.of());
+        String view = controller.addFriend(form, auth, ra);
 
-        String view = controller.addFriend(form, auth, model);
-
-        assertEquals("dashboard", view);
-        assertEquals("You cannot add yourself.", model.getAttribute("error"));
-        verify(userService).getUserByEmail("user@example.com");
-        verify(transactionService).getFeedForUser(1);
+        assertEquals("redirect:/connections", view);
+        assertEquals("You cannot add yourself.", ra.getFlashAttributes().get("error"));
         verify(userService, never()).addConnection(anyString(), anyString());
-        verifyNoMoreInteractions(userService, transactionService);
+        verifyNoInteractions(userService, transactionService);
     }
 
-    // 7) POST /connections success => calls service with normalized email and returns dashboard with success
+    // 7) POST /connections success => calls service and redirect with success
     @Test
-    public void addFriend_success_callsService_andShowsSuccess() {
-        Model model = new ConcurrentModel();
+    public void addFriend_success_callsService_andRedirectsWithSuccess() {
+        RedirectAttributes ra = new RedirectAttributesModelMap();
         FriendForm form = new FriendForm();
         form.setEmail("  FRIEND@Example.COM  "); // will be trimmed + lowercased
         TestingAuthenticationToken auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
-        User me = mock(User.class);
-        when(me.getId()).thenReturn(1);
-        when(me.getConnections()).thenReturn(Set.of());
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
-        when(transactionService.getFeedForUser(1)).thenReturn(List.of());
+        String view = controller.addFriend(form, auth, ra);
 
-        String view = controller.addFriend(form, auth, model);
-
-        assertEquals("dashboard", view);
-        assertEquals("Friend added!", model.getAttribute("success"));
+        assertEquals("redirect:/connections", view);
+        assertEquals("Friend added!", ra.getFlashAttributes().get("success"));
         verify(userService).addConnection("user@example.com", "friend@example.com");
-        verify(userService).getUserByEmail("user@example.com");
-        verify(transactionService).getFeedForUser(1);
-        verifyNoMoreInteractions(userService, transactionService);
+        verifyNoMoreInteractions(userService);
+        verifyNoInteractions(transactionService);
     }
 
-    // 8) POST /connections when service throws => error message and returns dashboard
+    // 8) POST /connections when service throws => error and redirect to /connections
     @Test
-    public void addFriend_whenServiceThrows_returnsDashboardWithError() {
-        Model model = new ConcurrentModel();
+    public void addFriend_whenServiceThrows_redirectsWithError() {
+        RedirectAttributes ra = new RedirectAttributesModelMap();
         FriendForm form = new FriendForm();
         form.setEmail("friend@example.com");
         TestingAuthenticationToken auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
-        User me = mock(User.class);
-        when(me.getId()).thenReturn(1);
-        when(me.getConnections()).thenReturn(Set.of());
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
-        when(transactionService.getFeedForUser(1)).thenReturn(List.of());
         doThrow(new IllegalArgumentException("User not found"))
                 .when(userService).addConnection("user@example.com", "friend@example.com");
 
-        String view = controller.addFriend(form, auth, model);
+        String view = controller.addFriend(form, auth, ra);
 
-        assertEquals("dashboard", view);
-        assertEquals("User not found", model.getAttribute("error"));
+        assertEquals("redirect:/connections", view);
+        assertEquals("User not found", ra.getFlashAttributes().get("error"));
         verify(userService).addConnection("user@example.com", "friend@example.com");
-        verify(userService).getUserByEmail("user@example.com");
-        verify(transactionService).getFeedForUser(1);
-        verifyNoMoreInteractions(userService, transactionService);
+        verifyNoMoreInteractions(userService);
+        verifyNoInteractions(transactionService);
     }
 
     // doTransfer

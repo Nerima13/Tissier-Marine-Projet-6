@@ -43,28 +43,49 @@ public class DashboardController {
 
     // Add a friend by email
     @PostMapping("/connections")
-    public String addFriend(@ModelAttribute("friendForm") FriendForm form, Authentication authentication, Model model) {
+    public String addFriend(@ModelAttribute("friendForm") FriendForm form,
+                            Authentication authentication,
+                            org.springframework.web.servlet.mvc.support.RedirectAttributes ra) {
+
         String currentEmail = resolveEmail(authentication);
         if (currentEmail == null) return "redirect:/login";
 
         if (form.getEmail() == null || form.getEmail().trim().isEmpty()) {
-            model.addAttribute("error", "Please enter a friend's email.");
-            return showDashboard(authentication, model);
+            ra.addFlashAttribute("error", "Please enter a friend's email.");
+            return "redirect:/connections";
         }
 
         String friendEmail = form.getEmail().trim().toLowerCase();
         if (friendEmail.equalsIgnoreCase(currentEmail)) {
-            model.addAttribute("error", "You cannot add yourself.");
-            return showDashboard(authentication, model);
+            ra.addFlashAttribute("error", "You cannot add yourself.");
+            return "redirect:/connections";
         }
 
         try {
             userService.addConnection(currentEmail, friendEmail);
-            model.addAttribute("success", "Friend added!");
+            ra.addFlashAttribute("success", "Friend added !");
         } catch (IllegalArgumentException ex) {
-            model.addAttribute("error", ex.getMessage());
+            ra.addFlashAttribute("error", ex.getMessage());
         }
-        return showDashboard(authentication, model);
+
+        return "redirect:/connections";
+    }
+
+    @GetMapping("/connections")
+    public String showAddFriend(Authentication authentication, Model model) {
+        String currentEmail = resolveEmail(authentication);
+        if (currentEmail == null) return "redirect:/login";
+
+        User me = userService.getUserByEmail(currentEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentEmail));
+
+        model.addAttribute("me", me);
+        if (!model.containsAttribute("friendForm")) {
+            model.addAttribute("friendForm", new FriendForm());
+        }
+        model.addAttribute("active", "add");
+
+        return "connections";
     }
 
     // Make a transfer
@@ -92,6 +113,29 @@ public class DashboardController {
         }
         return showDashboard(authentication, model);
     }
+
+    // Deposit money into the user's account
+    @PostMapping("/deposit")
+    public String doDeposit(@RequestParam("amount") java.math.BigDecimal amount,
+                            Authentication authentication,
+                            Model model) {
+
+        String currentEmail = resolveEmail(authentication);
+        if (currentEmail == null) return "redirect:/login";
+
+        User me = userService.getUserByEmail(currentEmail).orElse(null);
+        if (me == null) return "redirect:/login";
+
+        try {
+            userService.deposit(me.getId(), amount);
+            model.addAttribute("success", "Dépôt effectué.");
+        } catch (IllegalArgumentException ex) {
+            model.addAttribute("error", ex.getMessage());
+        }
+
+        return showDashboard(authentication, model);
+    }
+
 
     // Resolve the user's email depending on the authentication type (form login or OAuth2)
     private String resolveEmail(Authentication authentication) {

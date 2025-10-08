@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Page de profil</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        body{ background:#f6f7f9; }
+        .app-header .brand{font-weight:600;}
+        .app-header .nav-link{color:#212529; padding:0;}
+        .app-header .nav-link:hover{color:#0d6efd;}
+        .app-header .nav-link.active{color:#2E7CF6; font-weight:600;}
+        .page-wrap{ min-height:calc(100vh - 100px); display:flex; align-items:center; justify-content:center; }
+        .profile-card{ background:#fff; border-radius:.5rem; border:0; }
+        .row-line{ padding:.875rem 0; border-bottom:1px solid #eee; }
+        .row-line:last-child{ border-bottom:0; }
+        .label{ color:#212529; }
+        .value{ color:#212529; }
+        .chevron{ color:#9aa3af; }
+        .btn-orange{
+          --bs-btn-color:#fff;
+          --bs-btn-bg:#f5a623;
+          --bs-btn-border-color:#f5a623;
+          --bs-btn-hover-color:#fff;
+          --bs-btn-hover-bg:#e29314;
+          --bs-btn-hover-border-color:#e29314;
+          --bs-btn-active-color:#fff;
+          --bs-btn-active-bg:#cf8612;
+          --bs-btn-active-border-color:#cf8612;
+          --bs-btn-focus-shadow-rgb:245,166,35;
+        }
+    </style>
+</head>
+<body>
+
+<header class="app-header container py-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="brand">Pay My Buddy</div>
+        <nav class="d-flex gap-4">
+            <a th:href="@{/transfer}" class="nav-link">Transférer</a>
+            <a th:href="@{/profile}" class="nav-link active">Profil</a>
+            <a th:href="@{/connections}" class="nav-link">Ajouter relation</a>
+            <form th:action="@{/logout}" method="post" class="d-inline m-0 p-0">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button type="submit" class="btn btn-link nav-link p-0">Se déconnecter</button>
+            </form>
+        </nav>
+    </div>
+</header>
+
+<!-- Flash messages -->
+<div th:replace="~{fragments/flash :: body}"></div>
+
+<main class="page-wrap container">
+    <div class="w-100" style="max-width:640px;">
+        <div class="profile-card card shadow-sm p-4">
+            <div class="row row-line align-items-center">
+                <div class="col-4 label">Username</div>
+                <div class="col value" th:text="${me != null && !#strings.isEmpty(me.username) ? '@' + me.username : '@username'}">@username</div>
+                <div class="col-auto chevron">›</div>
+            </div>
+            <div class="row row-line align-items-center">
+                <div class="col-4 label">Mail</div>
+                <div class="col value" th:text="${me != null && !#strings.isEmpty(me.email) ? me.email : 'nom@domain.com'}">nom@domain.com</div>
+                <div class="col-auto chevron">›</div>
+            </div>
+            <div class="row row-line align-items-center">
+                <div class="col-4 label">Mot de passe</div>
+                <div class="col value">mot de passe</div>
+                <div class="col-auto chevron">›</div>
+            </div>
+
+            <div class="mt-4">
+                <button class="btn btn-orange" data-bs-toggle="modal" data-bs-target="#editModal">Modifier</button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form th:action="@{/profile}" method="post" th:object="${profileForm}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modifier le profil</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input class="form-control" th:field="*{username}" maxlength="25"
+                               th:placeholder="${me != null && !#strings.isEmpty(me.username) ? me.username : 'username'}"/>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Mail</label>
+                        <input class="form-control" th:field="*{email}" type="email" maxlength="100"
+                               th:placeholder="${me != null && !#strings.isEmpty(me.email) ? me.email : 'nom@domain.com'}"/>
+                    </div>
+
+                    <hr/>
+
+                    <!-- Current password -->
+                    <div class="mb-3">
+                        <label class="form-label">Mot de passe actuel</label>
+                        <div class="input-group">
+                            <input class="form-control" th:field="*{currentPassword}" type="password"
+                                   id="currentPassword" autocomplete="current-password"/>
+                            <button type="button" class="btn btn-outline-secondary btn-icon"
+                                    data-toggle="password" data-target="#currentPassword"
+                                    aria-label="Afficher le mot de passe actuel" aria-pressed="false">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- New password -->
+                    <div class="mb-3">
+                        <label class="form-label">Nouveau mot de passe</label>
+                        <div class="input-group">
+                            <input class="form-control" th:field="*{newPassword}" type="password"
+                                   id="newPassword" autocomplete="new-password" minlength="8"/>
+                            <button type="button" class="btn btn-outline-secondary btn-icon"
+                                    data-toggle="password" data-target="#newPassword"
+                                    aria-label="Afficher le nouveau mot de passe" aria-pressed="false">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="progress pw-meter mt-2">
+                            <div id="pwStrengthProfile" class="progress-bar" role="progressbar" style="width:0%"></div>
+                        </div>
+                        <div class="small-muted mt-1">8+ caractères, idéalement avec majuscules, chiffres et symbole.</div>
+                    </div>
+
+                    <!-- Confirmation -->
+                    <div class="mb-3">
+                        <label class="form-label">Confirmer le nouveau mot de passe</label>
+                        <div class="input-group">
+                            <input class="form-control" th:field="*{confirmPassword}" type="password"
+                                   id="confirmNewPassword" autocomplete="new-password"/>
+                            <button type="button" class="btn btn-outline-secondary btn-icon"
+                                    data-toggle="password" data-target="#confirmNewPassword"
+                                    aria-label="Afficher la confirmation" aria-pressed="false">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="text-muted m-0">Laisser vide les champs si vous ne souhaitez pas changer de mot de passe.</p>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-orange">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    (() => {
+      // Delegation: capture all clicks on [data-toggle="password"]
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-toggle="password"]');
+        if (!btn) return;
+
+        const selector = btn.getAttribute('data-target');
+        if (!selector) return;
+
+        const input = document.querySelector(selector);
+        if (!input) return;
+
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+
+        const icon = btn.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('bi-eye', !show);
+          icon.classList.toggle('bi-eye-slash', show);
+        }
+      });
+
+      // Password strength bar
+      const pw  = document.getElementById('newPassword');
+      const bar = document.getElementById('pwStrengthProfile');
+
+      function updateStrength() {
+        if (!pw || !bar) return;
+        const v = pw.value;
+        let s = 0;
+        if (v.length >= 8) s++;
+        if (/[A-Z]/.test(v)) s++;
+        if (/[0-9]/.test(v)) s++;
+        if (/[^A-Za-z0-9]/.test(v)) s++;
+        const pct = [0,25,50,75,100][s];
+
+        bar.style.width = pct + '%';
+        bar.className = 'progress-bar';
+        if (pct >= 75) bar.classList.add('bg-success');
+        else if (pct >= 50) bar.classList.add('bg-info');
+        else if (pct >= 25) bar.classList.add('bg-warning');
+        else bar.classList.add('bg-danger');
+      }
+
+      if (pw) {
+        ['input','change','blur'].forEach(ev => pw.addEventListener(ev, updateStrength));
+        // Recalculate each time the modal opens
+        const modalEl = document.getElementById('editModal');
+        if (modalEl) modalEl.addEventListener('shown.bs.modal', updateStrength);
+        updateStrength();
+      }
+    })();
+</script>
+</body>
+</html>

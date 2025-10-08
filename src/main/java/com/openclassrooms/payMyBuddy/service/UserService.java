@@ -99,6 +99,25 @@ public class UserService {
         return u.getBalance();
     }
 
+    @Transactional
+    public BigDecimal deposit(Integer userId, BigDecimal amount) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User id must not be null.");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Deposit amount must be > 0.");
+        }
+
+        BigDecimal a = amount.setScale(2, RoundingMode.HALF_UP);
+
+        User u = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found : id = " + userId));
+
+        u.setBalance(u.getBalance().add(a).setScale(2, RoundingMode.HALF_UP));
+        userRepository.save(u);
+        return u.getBalance();
+    }
+
     // Simple transfer without fee to a registered user (by email)
     @Transactional
     public Transaction transfer(Integer senderId, String receiverEmail, BigDecimal amount, String description) {
@@ -157,6 +176,11 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + meEmail));
         User friend = userRepository.findByEmail(frEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Friend not found: " + frEmail));
+
+        // No duplicate
+        if (me.getConnections().contains(friend)) {
+            throw new IllegalArgumentException("This user is already in your connections.");
+        }
 
         me.addConnection(friend); // updates join table
         userRepository.save(me);
