@@ -16,6 +16,26 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `billing_journal`
+--
+
+DROP TABLE IF EXISTS `billing_journal`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `billing_journal` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `transaction_id` int NOT NULL,
+  `event_type` enum('CHARGE','REFUND') NOT NULL DEFAULT 'CHARGE',
+  `payload` json NOT NULL,
+  `status` enum('PENDING','PROCESSING','SENT','FAILED') NOT NULL DEFAULT 'PENDING',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `bj_transactions_idx` (`transaction_id`),
+  CONSTRAINT `bj_transactions` FOREIGN KEY (`transaction_id`) REFERENCES `transactions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `transactions`
 --
 
@@ -27,14 +47,20 @@ CREATE TABLE `transactions` (
   `sender_id` int DEFAULT NULL,
   `receiver_id` int DEFAULT NULL,
   `description` varchar(100) DEFAULT NULL,
-  `amount` decimal(10,2) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `type` varchar(20) NOT NULL DEFAULT 'WITHDRAWAL',
+  `gross_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `fee_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `net_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `idempotency_key` varchar(65) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `transaction_sender_idx` (`sender_id`),
-  KEY `transaction_receiver_idx` (`receiver_id`),
-  CONSTRAINT `transaction_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL,
-  CONSTRAINT `transaction_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `ux_transactions_idem` (`idempotency_key`) /*!80000 INVISIBLE */,
+  KEY `ix_transactions_type` (`type`) /*!80000 INVISIBLE */,
+  KEY `ix_transaction_sender_created` (`sender_id`,`created_at`) /*!80000 INVISIBLE */,
+  KEY `ix_transaction_receiver_created` (`receiver_id`,`created_at`),
+  CONSTRAINT `fk_transaction_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL,
+  CONSTRAINT `fk_transaction_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -66,6 +92,45 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `user_connections`
+--
+
+DROP TABLE IF EXISTS `user_connections`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_connections` (
+  `user_id` int NOT NULL,
+  `connection_id` int NOT NULL,
+  PRIMARY KEY (`user_id`,`connection_id`),
+  KEY `uc_connection_idx` (`connection_id`),
+  CONSTRAINT `uc_connection` FOREIGN KEY (`connection_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `uc_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(25) NOT NULL,
+  `email` varchar(25) NOT NULL,
+  `password` varchar(100) NOT NULL,
+  `balance` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `version` bigint NOT NULL,
+  `iban` varchar(34) DEFAULT NULL,
+  `bic` varchar(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email_UNIQUE` (`email`),
+  UNIQUE KEY `username_UNIQUE` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -76,4 +141,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-17 14:24:50
+-- Dump completed on 2025-10-13 14:51:19

@@ -12,6 +12,7 @@ import java.util.Set;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(exclude = {"connections", "connected"})
 public class User {
 
     @Id
@@ -29,26 +30,37 @@ public class User {
     @Column(name = "password", nullable = false, length = 100)
     private String password;
 
-    @Column(name = "balance", nullable = false, precision = 10, scale = 2)
+    @Column(name = "balance", nullable = false, precision = 19, scale = 2)
     private BigDecimal balance = BigDecimal.ZERO;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
+    // IBAN/BIC optional
+    @Column(name = "iban", length = 34)
+    private String iban;
+
+    @Column(name = "bic", length = 11)
+    private String bic;
+
+    // Connections
     @ManyToMany
     @JoinTable(
             name = "user_connections",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "connection_id"),
-            uniqueConstraints = @UniqueConstraint(name = "uk_user_connections_pair", columnNames = {"user_id", "connection_id"}
+            uniqueConstraints = @UniqueConstraint(
+                    name = "uk_user_connections_pair",
+                    columnNames = {"user_id", "connection_id"}
             )
     )
-    @ToString.Exclude
     private Set<User> connections = new HashSet<>();
 
     @ManyToMany(mappedBy = "connections")
-    @ToString.Exclude
     private Set<User> connected = new HashSet<>();
 
-
-    // HELPERS
+    // Helpers
     public void addConnection(User other) {
         if (other == null || other == this) return;
         if (this.connections.add(other)) {

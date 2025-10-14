@@ -1,3 +1,5 @@
+CREATE DATABASE  IF NOT EXISTS `paymybuddy` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `paymybuddy`;
 -- MySQL dump 10.13  Distrib 8.0.42, for Win64 (x86_64)
 --
 -- Host: localhost    Database: paymybuddy
@@ -32,7 +34,7 @@ CREATE TABLE `billing_journal` (
   PRIMARY KEY (`id`),
   KEY `bj_transactions_idx` (`transaction_id`),
   CONSTRAINT `bj_transactions` FOREIGN KEY (`transaction_id`) REFERENCES `transactions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -47,14 +49,20 @@ CREATE TABLE `transactions` (
   `sender_id` int DEFAULT NULL,
   `receiver_id` int DEFAULT NULL,
   `description` varchar(100) DEFAULT NULL,
-  `amount` decimal(10,2) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `type` varchar(20) NOT NULL DEFAULT 'WITHDRAWAL',
+  `gross_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `fee_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `net_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `idempotency_key` varchar(65) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `transaction_sender_idx` (`sender_id`),
-  KEY `transaction_receiver_idx` (`receiver_id`),
-  CONSTRAINT `transaction_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL,
-  CONSTRAINT `transaction_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `ux_transactions_idem` (`idempotency_key`) /*!80000 INVISIBLE */,
+  KEY `ix_transactions_type` (`type`) /*!80000 INVISIBLE */,
+  KEY `ix_transaction_sender_created` (`sender_id`,`created_at`) /*!80000 INVISIBLE */,
+  KEY `ix_transaction_receiver_created` (`receiver_id`,`created_at`),
+  CONSTRAINT `fk_transaction_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL,
+  CONSTRAINT `fk_transaction_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -86,11 +94,14 @@ CREATE TABLE `users` (
   `username` varchar(25) NOT NULL,
   `email` varchar(25) NOT NULL,
   `password` varchar(100) NOT NULL,
-  `balance` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `balance` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `version` bigint NOT NULL,
+  `iban` varchar(34) DEFAULT NULL,
+  `bic` varchar(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email_UNIQUE` (`email`),
   UNIQUE KEY `username_UNIQUE` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -102,4 +113,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-17 13:58:50
+-- Dump completed on 2025-10-13 14:39:41

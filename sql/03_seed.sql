@@ -21,6 +21,7 @@
 
 LOCK TABLES `billing_journal` WRITE;
 /*!40000 ALTER TABLE `billing_journal` DISABLE KEYS */;
+INSERT INTO `billing_journal` VALUES (1,4,'CHARGE','{\"amount\": 10.00, \"currency\": \"EUR\", \"sender_id\": 1, \"created_at\": \"2025-10-08 16:13:54\", \"description\": \"Test appli\", \"receiver_id\": 9, \"transaction_id\": 4}','PENDING','2025-10-08 16:13:54');
 /*!40000 ALTER TABLE `billing_journal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -30,7 +31,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `transactions` WRITE;
 /*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
-INSERT INTO `transactions` VALUES (1,1,3,'Restaurant',10.00,'2025-09-10 15:56:06'),(2,2,1,'Voyage',25.00,'2025-09-10 15:56:06'),(3,3,1,'Billets de cinéma',8.00,'2025-09-10 15:56:06');
+INSERT INTO `transactions` VALUES (1,1,3,'Restaurant','2025-09-10 15:56:06','WITHDRAWAL',0.00,0.00,0.00,NULL),(2,2,1,'Voyage','2025-09-10 15:56:06','WITHDRAWAL',0.00,0.00,0.00,NULL),(3,3,1,'Billets de cinéma','2025-09-10 15:56:06','WITHDRAWAL',0.00,0.00,0.00,NULL),(4,1,9,'Test appli','2025-10-08 16:13:54','WITHDRAWAL',0.00,0.00,0.00,NULL);
 /*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -40,6 +41,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `user_connections` WRITE;
 /*!40000 ALTER TABLE `user_connections` DISABLE KEYS */;
+INSERT INTO `user_connections` VALUES (9,1),(1,9);
 /*!40000 ALTER TABLE `user_connections` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -49,7 +51,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'Laure','laure@gmail.com','$2a$10$fvsY4YfDhn7OF2/NFa/Zy.1TUZE8cU4386V77ZSq1h7/bKNyS9Mb6',0.00),(2,'Clara','clara@gmail.com','$2a$10$1QnwRK.t1O5JbTFAR9yTheQjcbZxZoKvWnP8EgEVVrDNxALFKHPL.',0.00),(3,'Luc','luc@gmail.com','$2a$10$7YptkJ.5Buoeb06hJi7puufc5G7Rb6I.HRoXebGnuA9AvMaaMJphu',0.00);
+INSERT INTO `users` VALUES (1,'Laure','laure@gmail.com','$2a$10$PE.XUUKEFKHDdUp13pPleekQi36RElTX/VHVaCrKVt.ou0tG.F5um',40.00,0,NULL,NULL),(2,'Clara','clara@gmail.com','$2a$10$1QnwRK.t1O5JbTFAR9yTheQjcbZxZoKvWnP8EgEVVrDNxALFKHPL.',0.00,0,NULL,NULL),(3,'Luc','luc@gmail.com','$2a$10$7YptkJ.5Buoeb06hJi7puufc5G7Rb6I.HRoXebGnuA9AvMaaMJphu',0.00,0,NULL,NULL),(4,'Marine Tissier','elay1965@hotmail.fr','$2a$10$VYKgqQAJ9WmQASr.1LEv8OpYINZecOPTCEH6DarQamdAPl9MHSQfG',0.00,0,NULL,NULL),(9,'Marine','marine.tsr13@icloud.com','$2a$10$gsjcNlcdHJhHbq.2Mrya1Oek.mZtxLT47LYiDgQT2jClyJMgWCQ1u',10.00,0,NULL,NULL);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -62,4 +64,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-17 14:26:12
+-- Dump completed on 2025-10-13 14:54:42
