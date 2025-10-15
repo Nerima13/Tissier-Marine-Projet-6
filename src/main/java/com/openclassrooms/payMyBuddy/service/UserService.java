@@ -2,50 +2,39 @@ package com.openclassrooms.payMyBuddy.service;
 
 import com.openclassrooms.payMyBuddy.model.Transaction;
 import com.openclassrooms.payMyBuddy.model.User;
-import com.openclassrooms.payMyBuddy.repository.TransactionRepository;
 import com.openclassrooms.payMyBuddy.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
-    private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WalletService walletService;
 
-    public UserService(UserRepository userRepository, TransactionRepository transactionRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.transactionRepository = transactionRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    // Basic read operations
+    // 1) Basic read operations
     public Iterable<User> getUsers() {
         return userRepository.findAll();
     }
 
     public Optional<User> getUserById(Integer id) {
-        if (id == null) {
-            throw new IllegalArgumentException("Id must not be null.");
-        }
+        if (id == null) throw new IllegalArgumentException("Id must not be null.");
         return userRepository.findById(id);
     }
 
     public Optional<User> getUserByEmail(String email) {
-        if (email == null) {
-            throw new IllegalArgumentException("Email must not be null.");
-        }
+        if (email == null) throw new IllegalArgumentException("Email must not be null.");
         return userRepository.findByEmail(email.trim().toLowerCase());
     }
 
-    // Registration : unique email, hashed password, balance initialized to 0.00 if null
+    // 2) Registration
     public User registerUser(User user) {
         if (user == null || user.getEmail() == null || user.getPassword() == null) {
             throw new IllegalArgumentException("User, email and password must not be null.");
@@ -60,16 +49,18 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         BigDecimal balance = (user.getBalance() == null) ? BigDecimal.ZERO : user.getBalance();
+        user.setBalance(balance); // The rounding/scale will be handled by WalletService when money flows occur
 
-        user.setBalance(balance.setScale(2, RoundingMode.HALF_UP));
+        // If the username can be null from the DTO, ensure a default value
+        if (user.getUsername() == null || user.getUsername().isBlank()) {
+            user.setUsername(normalizedEmail);
+        }
 
         return userRepository.save(user);
     }
 
     public User getOrCreateOAuth2User(String email, String name) {
-        if (email == null) {
-            throw new IllegalArgumentException("Email must not be null.");
-        }
+        if (email == null) throw new IllegalArgumentException("Email must not be null.");
 
         String normalizedEmail = email.trim().toLowerCase();
 
@@ -81,87 +72,49 @@ public class UserService {
         User u = new User();
         u.setEmail(normalizedEmail);
         u.setUsername((name == null || name.trim().isEmpty()) ? normalizedEmail : name.trim());
-        u.setPassword(UUID.randomUUID().toString()); // random strong password so form-login cannot guess it
+        u.setPassword(UUID.randomUUID().toString()); // random password (prevents form-login usage)
 
         return registerUser(u);
     }
 
-    /* --- PROTOTYPE ---
-       - Send money to any already-registered user
-       - No commission
-       - No deposit/withdraw (in V1)
-    */
-
-    // Current balance
+    // 3) Balance
     public BigDecimal getBalance(Integer userId) {
         User u = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found : id = " + userId));
         return u.getBalance();
     }
 
-    @Transactional
+    // 4) Money flows (delegated to WalletService)
+    /**
+     * Deposit (TOP_UP) with 0.5% fee (only the net amount is credited).
+     * Keeps the same signature (returns the updated balance).
+     */
     public BigDecimal deposit(Integer userId, BigDecimal amount) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User id must not be null.");
-        }
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Deposit amount must be > 0.");
-        }
+        if (userId == null) throw new IllegalArgumentException("User id must not be null.");
 
-        BigDecimal a = amount.setScale(2, RoundingMode.HALF_UP);
-
-        User u = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found : id = " + userId));
-
-        u.setBalance(u.getBalance().add(a).setScale(2, RoundingMode.HALF_UP));
-        userRepository.save(u);
-        return u.getBalance();
+        walletService.topUp(userId, amount, UUID.randomUUID().toString(), "Deposit");
+        // Reload the user to return the updated balance
+        return getBalance(userId);
     }
 
-    // Simple transfer without fee to a registered user (by email)
-    @Transactional
+    /**
+     * P2P transfer: the sender pays a 0.5% fee,
+     * the receiver gets the full (gross) amount.
+     * Keeps the same signature but aligns persistence with Transaction (gross/fee/net + type).
+     */
     public Transaction transfer(Integer senderId, String receiverEmail, BigDecimal amount, String description) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be > 0.");
-        }
-        BigDecimal a = amount.setScale(2, RoundingMode.HALF_UP);
-
-        User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new IllegalArgumentException("Sender not found : id = " + senderId));
-
-        if (receiverEmail == null) {
-            throw new IllegalArgumentException("Receiver email must not be null.");
-        }
+        if (senderId == null) throw new IllegalArgumentException("Sender id must not be null.");
+        if (receiverEmail == null) throw new IllegalArgumentException("Receiver email must not be null.");
 
         String recEmail = receiverEmail.trim().toLowerCase();
-
         User receiver = userRepository.findByEmail(recEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Receiver not found : " + recEmail));
 
-        if (sender.getId().equals(receiver.getId())) {
-            throw new IllegalArgumentException("You cannot send money to yourself.");
-        }
-        if (sender.getBalance().compareTo(a) < 0) {
-            throw new IllegalArgumentException("Insufficient balance.");
-        }
-
-        // Debit sender / Credit receiver
-        sender.setBalance(sender.getBalance().subtract(a).setScale(2, RoundingMode.HALF_UP));
-        receiver.setBalance(receiver.getBalance().add(a).setScale(2, RoundingMode.HALF_UP));
-        userRepository.save(sender);
-        userRepository.save(receiver);
-
-        // Persist transaction
-        Transaction t = new Transaction();
-        t.setSender(sender);
-        t.setReceiver(receiver);
-        t.setAmount(a);
-        t.setDescription((description == null || description.trim().isEmpty()) ? ("Transfer to " + receiver.getEmail()) : description.trim());
-
-        return transactionRepository.save(t);
+        return walletService.transferP2P(senderId, receiver.getId(), amount, UUID.randomUUID().toString(),
+                (description == null || description.trim().isEmpty()) ? ("Transfer to " + receiver.getEmail()) : description.trim());
     }
 
-    @Transactional
+    // 5) Connection management
     public void addConnection(String ownerEmail, String friendEmail) {
         if (ownerEmail == null || friendEmail == null) {
             throw new IllegalArgumentException("Emails must not be null.");
@@ -177,16 +130,14 @@ public class UserService {
         User friend = userRepository.findByEmail(frEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Friend not found: " + frEmail));
 
-        // No duplicate
         if (me.getConnections().contains(friend)) {
             throw new IllegalArgumentException("This user is already in your connections.");
         }
 
-        me.addConnection(friend); // updates join table
+        me.addConnection(friend);
         userRepository.save(me);
     }
 
-    @Transactional
     public void removeConnection(String ownerEmail, String friendEmail) {
         if (ownerEmail == null || friendEmail == null) {
             throw new IllegalArgumentException("Emails must not be null.");
@@ -202,28 +153,23 @@ public class UserService {
         User friend = userRepository.findByEmail(frEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Friend not found: " + frEmail));
 
-        // If friend is not in the connections, removeConnection will simply have no effect
         me.removeConnection(friend);
         userRepository.save(me);
     }
 
-    @Transactional
-    public User updateProfile(String currentEmail, String newUsername, String newEmail, String currentPassword, String newPassword, String confirmPassword) {
+    // 6) Profile update
+    public User updateProfile(String currentEmail, String newUsername, String newEmail,
+                              String currentPassword, String newPassword, String confirmPassword) {
 
-        if (currentEmail == null) {
-            throw new IllegalArgumentException("Email must not be null.");
-        }
+        if (currentEmail == null) throw new IllegalArgumentException("Email must not be null.");
 
-        // Fetch current user by email
         User me = getUserByEmail(currentEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentEmail));
 
         // Username
         if (newUsername != null) {
             String u = newUsername.trim();
-            if (!u.isEmpty()) {
-                me.setUsername(u);
-            }
+            if (!u.isEmpty()) me.setUsername(u);
         }
 
         // Email
@@ -236,7 +182,6 @@ public class UserService {
                     }
                 });
                 me.setEmail(normalized);
-                // Note: the current session remains bound to the old email until the user signs in again.
             }
         }
 
@@ -257,6 +202,7 @@ public class UserService {
             }
             me.setPassword(passwordEncoder.encode(newPassword));
         }
+
         return userRepository.save(me);
     }
 }

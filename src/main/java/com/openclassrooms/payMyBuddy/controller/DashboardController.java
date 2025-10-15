@@ -88,55 +88,6 @@ public class DashboardController {
         return "connections";
     }
 
-    // Make a transfer
-    @PostMapping("/transfer")
-    public String doTransfer(@ModelAttribute("transferForm") TransferForm form,
-                             Authentication authentication,
-                             Model model) {
-        String currentEmail = resolveEmail(authentication);
-        if (currentEmail == null) return "redirect:/login";
-
-        User me = userService.getUserByEmail(currentEmail).orElse(null);
-        if (me == null) return "redirect:/login";
-
-        if (form.getReceiverEmail() == null || form.getAmount() == null) {
-            model.addAttribute("error", "Please select a receiver and enter an amount.");
-            return showDashboard(authentication, model);
-        }
-
-        String receiverEmail = form.getReceiverEmail().trim().toLowerCase();
-        try {
-            userService.transfer(me.getId(), receiverEmail, form.getAmount(), form.getDescription());
-            model.addAttribute("success", "Transfer completed.");
-        } catch (IllegalArgumentException ex) {
-            model.addAttribute("error", ex.getMessage());
-        }
-        return showDashboard(authentication, model);
-    }
-
-    // Deposit money into the user's account
-    @PostMapping("/deposit")
-    public String doDeposit(@RequestParam("amount") java.math.BigDecimal amount,
-                            Authentication authentication,
-                            Model model) {
-
-        String currentEmail = resolveEmail(authentication);
-        if (currentEmail == null) return "redirect:/login";
-
-        User me = userService.getUserByEmail(currentEmail).orElse(null);
-        if (me == null) return "redirect:/login";
-
-        try {
-            userService.deposit(me.getId(), amount);
-            model.addAttribute("success", "Dépôt effectué.");
-        } catch (IllegalArgumentException ex) {
-            model.addAttribute("error", ex.getMessage());
-        }
-
-        return showDashboard(authentication, model);
-    }
-
-
     // Resolve the user's email depending on the authentication type (form login or OAuth2)
     private String resolveEmail(Authentication authentication) {
         if (authentication == null) return null;

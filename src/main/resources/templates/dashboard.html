@@ -19,11 +19,12 @@
 </head>
 <body class="bg-light">
 
-<!-- Header -->
+<!-- Header (navigation + logout) -->
 <header class="app-header container py-3">
     <div class="d-flex justify-content-between align-items-center">
         <div class="brand">Pay My Buddy</div>
         <nav class="d-flex gap-4">
+            <!-- Link to the dashboard page (GET /transfer) -->
             <a th:href="@{/transfer}" class="nav-link active">Transférer</a>
             <a th:href="@{/profile}" class="nav-link">Profil</a>
             <a th:href="@{/connections}" class="nav-link">Ajouter relation</a>
@@ -37,19 +38,24 @@
     </div>
 </header>
 
-<!-- Flash messages -->
+<!-- Flash messages (success/error) injected by controllers -->
 <div th:replace="~{fragments/flash :: body}"></div>
 
 <main class="container py-4">
 
-    <!-- Balance + deposit -->
+    <!-- Balance + Deposit form
+         - Balance : taken from model attribute 'me'
+         - Deposit submits to POST /deposit handled by WalletController.deposit()
+         - 0.5% fee applies; only NET is credited to the user's balance -->
     <section class="card border-0 shadow-sm mb-4">
         <div class="card-body d-flex flex-wrap align-items-end justify-content-between gap-3">
             <div>
                 <div class="text-muted small">Solde disponible</div>
+                <!-- Format balance with 2 decimals -->
                 <div class="h4 m-0" th:text="${#numbers.formatDecimal(me.balance, 1, 'COMMA', 2, 'POINT')} + ' €'">0,00 €</div>
             </div>
 
+            <!-- Keep CSRF token; 'amount' must be >= 0.01 (validated also server-side) -->
             <form class="d-flex gap-2" th:action="@{/deposit}" method="post">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <div class="input-group">
@@ -61,29 +67,42 @@
         </div>
     </section>
 
-    <!-- Money transfer form -->
+    <!-- P2P Transfer form
+         - Binds to 'transferForm' DTO
+         - Submits to POST /transfer handled by WalletController.transfer()
+         - 0.5% fee paid by SENDER, RECEIVER gets GROSS amount -->
     <form class="row g-3 align-items-center mb-5"
           th:action="@{/transfer}" method="post" th:object="${transferForm}">
+        <!-- CSRF token required -->
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+        <!-- Receiver selector:
+             - options built from 'friends' collection (User objects)
+             - value is the friend's email (receiverEmail expected by TransferForm) -->
         <div class="col-12 col-md-4">
             <label class="form-label visually-hidden">Relation</label>
             <select class="form-select" th:field="*{receiverEmail}" required>
-                <!-- Placeholder shown when no recipient is selected -->
+                <!-- Placeholder when no recipient selected -->
                 <option value=""
                         th:selected="${transferForm == null or #strings.isEmpty(transferForm.receiverEmail)}">
                     Sélectionner une relation
                 </option>
 
+                <!-- Show username if present, otherwise fallback to email -->
                 <option th:each="f : ${friends}"
                         th:value="${f.email}"
                         th:text="${#strings.isEmpty(f.username) ? f.email : f.username}">
                 </option>
             </select>
         </div>
+
+        <!-- Optional description (max length enforced in the input, validate server-side as well if needed) -->
         <div class="col-12 col-md-4">
             <label class="form-label visually-hidden">Description</label>
             <input class="form-control" th:field="*{description}" placeholder="Description (optionnel)" maxlength="100"/>
         </div>
+
+        <!-- Amount (>= 0.01). Backend will round HALF_UP(2) and validate again -->
         <div class="col-8 col-md-2">
             <label class="form-label visually-hidden">Montant (€)</label>
             <div class="input-group">
@@ -96,7 +115,14 @@
         </div>
     </form>
 
-    <!-- Transactions history -->
+    <!-- Transactions history table
+         - Source: 'feed' (list of Transaction)
+         - Transaction fields used: type, sender, receiver, grossAmount, feeAmount, netAmount, description
+         - We compute a SIGNED amount to reflect the impact on the current user's balance:
+             * TOP_UP:        + netAmount (you are the receiver)
+             * P2P_TRANSFER:  if you are sender  -> -(gross + fee)
+                              if you are receiver -> + gross
+             * WITHDRAWAL:    if you are sender  -> -(gross + fee) -->
     <section class="card border-0 shadow-sm">
         <div class="card-body">
             <h2 class="h6 mb-3">Mes Transactions</h2>
@@ -110,31 +136,66 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <!-- Relies on 'me' (provided by the controller) -->
+                    <!-- Iterate over each Transaction 'tx' in 'feed' -->
                     <tr th:each="tx : ${feed}"
                         th:with="
-                            isSender=${ tx.sender != null
-                                       and me != null
-                                       and !(tx.sender instanceof T(java.lang.String))
-                                       and (tx.sender.id == me.id) },
-                            other=${isSender} ? ${tx.receiver} : ${tx.sender},
-                            displayName=${
-                              other == null
-                                ? '-'
-                                : ( other instanceof T(java.lang.String)
-                                    ? other
-                                    : ( !#strings.isEmpty(other.username)
-                                        ? other.username
-                                        : (other.email != null ? other.email : '-') )
-                                  )
-                            }">
-                        <td th:text="${displayName}">Relation</td>
+              /* Who am I in this transaction? */
+              isSender = ${tx.sender != null and me != null and tx.sender.id == me.id},
+              isReceiver = ${tx.receiver != null and me != null and tx.receiver.id == me.id},
+
+              /* Transaction kind (enum TransactionType) */
+              isTopUp = ${tx.type == T(com.openclassrooms.payMyBuddy.model.TransactionType).TOP_UP},
+              isP2P = ${tx.type == T(com.openclassrooms.payMyBuddy.model.TransactionType).P2P_TRANSFER},
+              isWithdrawal = ${tx.type == T(com.openclassrooms.payMyBuddy.model.TransactionType).WITHDRAWAL},
+
+              /* Who to display as the counterparty?
+                 - TOP_UP      -> 'Rechargement'
+                 - WITHDRAWAL  -> 'Retrait bancaire'
+                 - P2P:
+                     if I'm sender   -> show receiver (username or email)
+                     if I'm receiver -> show sender  (username or email)
+              */
+              counterparty=${
+                isTopUp ? 'Rechargement'
+                  : (isWithdrawal ? 'Retrait bancaire'
+                      : ( isSender
+                          ? (tx.receiver != null ? (#strings.isEmpty(tx.receiver.username) ? tx.receiver.email : tx.receiver.username) : '-')
+                          : (tx.sender != null ? (#strings.isEmpty(tx.sender.username) ? tx.sender.email : tx.sender.username) : '-')
+                        )
+                    )
+              },
+
+              /* Signed amount according to V1 rules (0.5% fee monetization)
+                 - TOP_UP:
+                     you gain +netAmount (only credited amount)
+                 - P2P:
+                     sender pays (gross + fee)  -> negative
+                     receiver gets gross        -> positive
+                 - WITHDRAWAL:
+                     sender pays (gross + fee)  -> negative
+              */
+              signedAmount=${
+                isTopUp     ? (isReceiver ? tx.netAmount : 0)
+                : (isP2P    ? (isSender ? (tx.grossAmount.add(tx.feeAmount).negate()) : tx.grossAmount)
+                : (isWithdrawal ? (isSender ? (tx.grossAmount.add(tx.feeAmount).negate()) : 0)
+                : 0))
+              }
+            ">
+                        <!-- Counterparty label -->
+                        <td th:text="${counterparty}">-</td>
+
+                        <!-- Description or '-' if empty -->
                         <td th:text="${(tx.description != null and !#strings.isEmpty(tx.description)) ? tx.description : '-'}">-</td>
+
+                        <!-- Right-aligned signed amount (green = positive, red = negative) -->
                         <td class="text-end">
-                            <span th:text="${#numbers.formatDecimal(tx.amount, 1, 'COMMA', 2, 'POINT')}">0.00</span> €
+                            <span th:classappend="${signedAmount < 0} ? 'text-danger' : 'text-success'">
+                              <span th:text="${#numbers.formatDecimal(signedAmount, 1, 'COMMA', 2, 'POINT')}">0,00</span> €
+                            </span>
                         </td>
                     </tr>
 
+                    <!-- Empty state -->
                     <tr th:if="${#lists.isEmpty(feed)}">
                         <td colspan="3" class="text-muted">Aucune transaction.</td>
                     </tr>

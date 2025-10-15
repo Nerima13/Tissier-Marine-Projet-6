@@ -22,10 +22,17 @@ public class WalletService {
 
     // 0.5% fee
     private static final BigDecimal FEE_RATE = new BigDecimal("0.005");
+    private static final BigDecimal MIN_AMOUNT = new BigDecimal("0.01");
 
     // Round to 2 decimal places (HALF_UP)
     private BigDecimal round(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(MIN_AMOUNT) < 0) {
+            throw new IllegalArgumentException("Amount must be >= " + MIN_AMOUNT);
+        }
     }
 
     // If a transaction with the same key already exists, return it
@@ -41,14 +48,12 @@ public class WalletService {
         Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
         if (existing != null) return existing;
 
-        if (amount == null || amount.compareTo(new BigDecimal("0.01")) < 0) {
-            throw new IllegalArgumentException("Amount must be >= 0.01");
-        }
-
+        validateAmount(amount);
         User user = userRepo.findById(userId).orElseThrow();
 
-        BigDecimal fee = round(amount.multiply(FEE_RATE));
-        BigDecimal net = amount.subtract(fee);
+        BigDecimal gross = round(amount);
+        BigDecimal fee = round(gross.multiply(FEE_RATE));
+        BigDecimal net = round(gross.subtract(fee));
 
         // Credit only the net amount to the user's balance
         user.setBalance(user.getBalance().add(net));
@@ -59,7 +64,7 @@ public class WalletService {
         tx.setSender(null);               // top-up => no internal sender
         tx.setReceiver(user);
         tx.setDescription(description);
-        tx.setGrossAmount(round(amount));
+        tx.setGrossAmount(gross);
         tx.setFeeAmount(fee);
         tx.setNetAmount(net);
         tx.setIdempotencyKey(idempotencyKey);
@@ -76,24 +81,24 @@ public class WalletService {
         if (senderId == null || receiverId == null || senderId.equals(receiverId)) {
             throw new IllegalArgumentException("Invalid users");
         }
-        if (amount == null || amount.compareTo(new BigDecimal("0.01")) < 0) {
-            throw new IllegalArgumentException("Amount must be >= 0.01");
-        }
+
+        validateAmount(amount);
 
         User sender = userRepo.findById(senderId).orElseThrow();
         User receiver = userRepo.findById(receiverId).orElseThrow();
 
-        BigDecimal fee = round(amount.multiply(FEE_RATE));
-        BigDecimal net = amount.subtract(fee);
+        BigDecimal gross = round(amount);
+        BigDecimal fee = round(gross.multiply(FEE_RATE));
+        BigDecimal totalDebit = gross.add(fee);
 
         // Check if the sender has enough balance (for the full amount)
-        if (sender.getBalance().compareTo(amount) < 0) {
+        if (sender.getBalance().compareTo(totalDebit) < 0) {
             throw new IllegalStateException("Insufficient balance");
         }
 
         // Balance updates: debit full amount, credit net amount to receiver
-        sender.setBalance(sender.getBalance().subtract(amount));
-        receiver.setBalance(receiver.getBalance().add(net));
+        sender.setBalance(sender.getBalance().subtract(totalDebit));
+        receiver.setBalance(receiver.getBalance().add(gross));
 
         // Save the transaction
         Transaction tx = new Transaction();
@@ -101,9 +106,9 @@ public class WalletService {
         tx.setSender(sender);
         tx.setReceiver(receiver);
         tx.setDescription(description);
-        tx.setGrossAmount(round(amount));
+        tx.setGrossAmount(gross);
         tx.setFeeAmount(fee);
-        tx.setNetAmount(net);
+        tx.setNetAmount(gross);
         tx.setIdempotencyKey(idempotencyKey);
 
         return txRepo.save(tx);
@@ -115,9 +120,7 @@ public class WalletService {
         Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
         if (existing != null) return existing;
 
-        if (amount == null || amount.compareTo(new BigDecimal("0.01")) < 0) {
-            throw new IllegalArgumentException("Amount must be >= 0.01");
-        }
+        validateAmount(amount);
 
         User user = userRepo.findById(userId).orElseThrow();
 
@@ -126,8 +129,9 @@ public class WalletService {
             throw new IllegalStateException("IBAN/BIC are required for withdrawal");
         }
 
-        BigDecimal fee = round(amount.multiply(FEE_RATE));
-        BigDecimal totalDebit = amount.add(fee); // ce que l'utilisateur paie
+        BigDecimal gross = round(amount);
+        BigDecimal fee = round(gross.multiply(FEE_RATE));
+        BigDecimal totalDebit = gross.add(fee); // ce que l'utilisateur paie
 
         if (user.getBalance().compareTo(totalDebit) < 0) {
             throw new IllegalStateException("Insufficient balance for withdrawal + fee");
@@ -142,9 +146,9 @@ public class WalletService {
         tx.setSender(user);
         tx.setReceiver(null); // outside the app
         tx.setDescription(description);
-        tx.setGrossAmount(round(amount));
+        tx.setGrossAmount(gross);
         tx.setFeeAmount(fee);
-        tx.setNetAmount(amount);
+        tx.setNetAmount(gross);
         tx.setIdempotencyKey(idempotencyKey);
 
         return txRepo.save(tx);
