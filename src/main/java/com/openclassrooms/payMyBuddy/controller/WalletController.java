@@ -4,6 +4,7 @@ import com.openclassrooms.payMyBuddy.dto.DepositForm;
 import com.openclassrooms.payMyBuddy.dto.TransferForm;
 import com.openclassrooms.payMyBuddy.dto.WithdrawForm;
 import com.openclassrooms.payMyBuddy.model.User;
+import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import com.openclassrooms.payMyBuddy.service.WalletService;
 import lombok.RequiredArgsConstructor;
@@ -23,16 +24,16 @@ public class WalletController {
 
     private final WalletService walletService;
     private final UserService userService;
+    private final CurrentUserService currentUserService;
 
-    // Get the currently authenticated user based on their email address.
+    // Resolve the current user from Authentication (works for form login and OAuth2).
     private User me(Authentication auth) {
-        return userService.getUserByEmail(auth.getName()).orElseThrow();
+        String email = currentUserService.requireEmail(auth);
+        return userService.getUserByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
     }
 
-    /**
-     * Handle money deposit into the user's wallet.
-     * A 0.5% fee is applied — only the net amount (after fees) is credited.
-     */
+    // Deposit money to the wallet (0.5% fee)
     @PostMapping("/deposit")
     public String deposit(@ModelAttribute DepositForm form, Authentication auth, RedirectAttributes ra) {
         try {
@@ -40,7 +41,7 @@ public class WalletController {
             walletService.topUp(
                     u.getId(),
                     form.getAmount(),
-                    UUID.randomUUID().toString(),   // unique key to prevent duplicate transactions
+                    UUID.randomUUID().toString(),  // prevents duplicate processing
                     form.getDescription());
             ra.addFlashAttribute("success", "Deposit completed (0.5% fee applied).");
         } catch (Exception e) {
@@ -50,22 +51,16 @@ public class WalletController {
         return "redirect:/transfer";
     }
 
-    /**
-     * Handle withdrawal from the user's wallet to their bank account.
-     * A 0.5% fee is applied — the user pays (amount + fee).
-     */
+    // Withdraw money to the bank (0.5% fee)
     @PostMapping("/withdraw")
-    public String withdraw(@ModelAttribute WithdrawForm form,
-                           Authentication auth,
-                           RedirectAttributes ra) {
+    public String withdraw(@ModelAttribute WithdrawForm form, Authentication auth, RedirectAttributes ra) {
         try {
             User u = me(auth);
             walletService.withdrawToBank(
                     u.getId(),
                     form.getAmount(),
                     UUID.randomUUID().toString(),
-                    form.getDescription()
-            );
+                    form.getDescription());
             ra.addFlashAttribute("success", "Withdrawal initiated (0.5% fee applied).");
         } catch (Exception e) {
             log.warn("Withdraw failed: {}", e.getMessage());
@@ -74,14 +69,9 @@ public class WalletController {
         return "redirect:/transfer";
     }
 
-    /**
-     * Handle peer-to-peer (P2P) money transfers between users.
-     * The sender pays the 0.5% fee, and the receiver gets the full amount.
-     */
+    // P2P transfer (sender pays the 0.5% fee; receiver gets the full amount)
     @PostMapping("/transfer")
-    public String transfer(@ModelAttribute TransferForm form,
-                           Authentication auth,
-                           RedirectAttributes ra) {
+    public String transfer(@ModelAttribute TransferForm form, Authentication auth, RedirectAttributes ra) {
         try {
             User sender = me(auth);
             User receiver = userService.getUserByEmail(form.getReceiverEmail())
@@ -92,8 +82,7 @@ public class WalletController {
                     receiver.getId(),
                     form.getAmount(),
                     UUID.randomUUID().toString(),
-                    form.getDescription()
-            );
+                    form.getDescription());
             ra.addFlashAttribute("success", "Transfer sent (0.5% fee paid by the sender).");
         } catch (Exception e) {
             log.warn("Transfer failed: {}", e.getMessage());

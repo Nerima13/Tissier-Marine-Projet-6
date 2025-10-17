@@ -139,22 +139,13 @@
                     <!-- Iterate over each Transaction 'tx' in 'feed' -->
                     <tr th:each="tx : ${feed}"
                         th:with="
-              /* Who am I in this transaction? */
               isSender = ${tx.sender != null and me != null and tx.sender.id == me.id},
               isReceiver = ${tx.receiver != null and me != null and tx.receiver.id == me.id},
 
-              /* Transaction kind (enum TransactionType) */
               isTopUp = ${tx.type == T(com.openclassrooms.payMyBuddy.model.TransactionType).TOP_UP},
               isP2P = ${tx.type == T(com.openclassrooms.payMyBuddy.model.TransactionType).P2P_TRANSFER},
               isWithdrawal = ${tx.type == T(com.openclassrooms.payMyBuddy.model.TransactionType).WITHDRAWAL},
 
-              /* Who to display as the counterparty?
-                 - TOP_UP      -> 'Rechargement'
-                 - WITHDRAWAL  -> 'Retrait bancaire'
-                 - P2P:
-                     if I'm sender   -> show receiver (username or email)
-                     if I'm receiver -> show sender  (username or email)
-              */
               counterparty=${
                 isTopUp ? 'Rechargement'
                   : (isWithdrawal ? 'Retrait bancaire'
@@ -165,15 +156,6 @@
                     )
               },
 
-              /* Signed amount according to V1 rules (0.5% fee monetization)
-                 - TOP_UP:
-                     you gain +netAmount (only credited amount)
-                 - P2P:
-                     sender pays (gross + fee)  -> negative
-                     receiver gets gross        -> positive
-                 - WITHDRAWAL:
-                     sender pays (gross + fee)  -> negative
-              */
               signedAmount=${
                 isTopUp     ? (isReceiver ? tx.netAmount : 0)
                 : (isP2P    ? (isSender ? (tx.grossAmount.add(tx.feeAmount).negate()) : tx.grossAmount)

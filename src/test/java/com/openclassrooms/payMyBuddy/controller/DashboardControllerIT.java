@@ -1,85 +1,128 @@
 package com.openclassrooms.payMyBuddy.controller;
 
+import com.openclassrooms.payMyBuddy.dto.FriendForm;
 import com.openclassrooms.payMyBuddy.model.User;
+import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oauth2Login;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(DashboardController.class)
-public class DashboardControllerIT {
+class DashboardControllerIT {
 
     @Autowired MockMvc mvc;
 
     @MockBean UserService userService;
     @MockBean TransactionService transactionService;
+    @MockBean CurrentUserService currentUserService;
 
-    @Test
+    // GET /connections: happy path -> renders "connections" view with required attributes    @Test
     @WithMockUser(username = "user@example.com", roles = "USER")
-    void transfer_success_redirects_to_transfer_and_calls_service() throws Exception {
-        User me = new User(); me.setId(1); me.setEmail("user@example.com");
+    void get_connections_renders_view_and_fills_model() throws Exception {
+        when(currentUserService.requireEmail(any())).thenReturn("user@example.com");
+
+        User me = new User();
+        me.setId(1);
+        me.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
-        when(userService.transfer(1, "friend@example.com", new BigDecimal("10.00"), "Coffee"))
-                .thenReturn(null); // the controller does not reuse the return value
 
-        mvc.perform(post("/transfer")
-                        .param("receiverEmail", "friend@example.com")
-                        .param("amount", "10.00")
-                        .param("description", "Coffee")
-                        .with(csrf()))
-                .andExpect(status().isFound())
-                .andExpect(redirectedUrl("/transfer"));
+        mvc.perform(get("/connections"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("connections"))
+                .andExpect(model().attributeExists("me"))
+                .andExpect(model().attributeExists("friendForm"))
+                .andExpect(model().attribute("active", "add"));
 
+        verify(currentUserService).requireEmail(any());
         verify(userService).getUserByEmail("user@example.com");
-        verify(userService).transfer(1, "friend@example.com", new BigDecimal("10.00"), "Coffee");
         verifyNoMoreInteractions(userService);
         verifyNoInteractions(transactionService);
     }
 
-    @Test
-    void add_connection_success_redirects_to_transfer_and_calls_service() throws Exception {
-        // Simulated OAuth2 auth: getName() = user@example.com
-        Map<String, Object> attrs = new HashMap<>();
-        attrs.put("email", "user@example.com");
-        attrs.put("sub", "user@example.com"); // getName() will be this email
-
-        List<GrantedAuthority> roles = List.of(new SimpleGrantedAuthority("ROLE_USER"));
-
-        // The controller first looks up the current user
-        User me = new User(); me.setId(1); me.setEmail("user@example.com");
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
+    // POST /connections: success -> redirects to /connections with success message    @Test
+    @WithMockUser(username = "user@example.com", roles = "USER")
+    void post_connections_success_redirects_and_calls_service() throws Exception {
+        when(currentUserService.requireEmail(any())).thenReturn("user@example.com");
 
         mvc.perform(post("/connections")
                         .param("email", "friend@example.com")
-                        .with(csrf())
-                        .with(oauth2Login()
-                                .attributes(a -> a.putAll(attrs))
-                                .authorities(roles)))
+                        .with(csrf()))
                 .andExpect(status().isFound())
-                .andExpect(redirectedUrl("/transfer"));
+                .andExpect(redirectedUrl("/connections"))
+                .andExpect(flash().attribute("success", "Friend added !"));
 
-        verify(userService).getUserByEmail("user@example.com");
+        verify(currentUserService).requireEmail(any());
         verify(userService).addConnection("user@example.com", "friend@example.com");
         verifyNoMoreInteractions(userService);
         verifyNoInteractions(transactionService);
     }
 
+    // POST /connections: blank email -> error + redirect to /connections
+    @Test
+    @WithMockUser(username = "user@example.com", roles = "USER")
+    void post_connections_blank_email_redirects_with_error() throws Exception {
+        when(currentUserService.requireEmail(any())).thenReturn("user@example.com");
+
+        mvc.perform(post("/connections")
+                        .param("email", "   ")
+                        .with(csrf()))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("/connections"))
+                .andExpect(flash().attribute("error", "Please enter a friend's email."));
+
+        verify(currentUserService).requireEmail(any());
+        verify(userService, never()).addConnection(anyString(), anyString());
+        verifyNoInteractions(transactionService);
+    }
+
+    // POST /connections: trying to add yourself -> error + redirect to /connections    @Test
+    @WithMockUser(username = "user@example.com", roles = "USER")
+    void post_connections_adding_self_redirects_with_error() throws Exception {
+        when(currentUserService.requireEmail(any())).thenReturn("user@example.com");
+
+        mvc.perform(post("/connections")
+                        .param("email", " USER@EXAMPLE.COM ")
+                        .with(csrf()))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("/connections"))
+                .andExpect(flash().attribute("error", "You cannot add yourself."));
+
+        verify(currentUserService).requireEmail(any());
+        verify(userService, never()).addConnection(anyString(), anyString());
+        verifyNoInteractions(transactionService);
+    }
+
+    // POST /connections: service throws exception -> error message + redirect to /connections    @Test
+    @WithMockUser(username = "user@example.com", roles = "USER")
+    void post_connections_service_throws_redirects_with_service_message() throws Exception {
+        when(currentUserService.requireEmail(any())).thenReturn("user@example.com");
+        doThrow(new IllegalArgumentException("User not found"))
+                .when(userService).addConnection("user@example.com", "friend@example.com");
+
+        mvc.perform(post("/connections")
+                        .param("email", "friend@example.com")
+                        .with(csrf()))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("/connections"))
+                .andExpect(flash().attribute("error", "User not found"));
+
+        verify(currentUserService).requireEmail(any());
+        verify(userService).addConnection("user@example.com", "friend@example.com");
+        verifyNoMoreInteractions(userService);
+        verifyNoInteractions(transactionService);
+    }
 }

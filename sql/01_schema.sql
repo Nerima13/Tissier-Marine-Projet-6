@@ -18,26 +18,6 @@ USE `paymybuddy`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `billing_journal`
---
-
-DROP TABLE IF EXISTS `billing_journal`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `billing_journal` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `transaction_id` int NOT NULL,
-  `event_type` enum('CHARGE','REFUND') NOT NULL DEFAULT 'CHARGE',
-  `payload` json NOT NULL,
-  `status` enum('PENDING','PROCESSING','SENT','FAILED') NOT NULL DEFAULT 'PENDING',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `bj_transactions_idx` (`transaction_id`),
-  CONSTRAINT `bj_transactions` FOREIGN KEY (`transaction_id`) REFERENCES `transactions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `transactions`
 --
 
@@ -50,10 +30,10 @@ CREATE TABLE `transactions` (
   `receiver_id` int DEFAULT NULL,
   `description` varchar(100) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `type` varchar(20) NOT NULL DEFAULT 'WITHDRAWAL',
-  `gross_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
-  `fee_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
-  `net_amount` decimal(19,2) NOT NULL DEFAULT '0.00',
+  `type` varchar(20) NOT NULL,
+  `gross_amount` decimal(19,2) NOT NULL,
+  `fee_amount` decimal(19,2) NOT NULL,
+  `net_amount` decimal(19,2) NOT NULL,
   `idempotency_key` varchar(65) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `ux_transactions_idem` (`idempotency_key`) /*!80000 INVISIBLE */,
@@ -62,7 +42,7 @@ CREATE TABLE `transactions` (
   KEY `ix_transaction_receiver_created` (`receiver_id`,`created_at`),
   CONSTRAINT `fk_transaction_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL,
   CONSTRAINT `fk_transaction_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -113,4 +93,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-13 14:39:41
+-- Dump completed on 2025-10-17 10:58:15
