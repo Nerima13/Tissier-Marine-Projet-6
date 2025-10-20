@@ -25,9 +25,6 @@ public class LoginControllerTest {
     @Mock
     UserService userService;
 
-    @Mock
-    Model model;
-
     @InjectMocks
     LoginController controller;
 

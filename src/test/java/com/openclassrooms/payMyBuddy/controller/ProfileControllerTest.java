@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class ProfileControllerTest {
+class ProfileControllerTest {
 
     @Mock
     UserService userService;
@@ -28,11 +28,9 @@ public class ProfileControllerTest {
     @InjectMocks
     ProfileController controller;
 
-    // GET /profile
-
     // 1) GET /profile with existing user => returns "profile" and fills model (me + default form)
     @Test
-    public void getProfil_success_returnsProfile_andFillsModel() {
+    void getProfil_success_returnsProfile_andFillsModel() {
         Model model = new ConcurrentModel();
         Principal principal = () -> "user@example.com";
 
@@ -50,24 +48,25 @@ public class ProfileControllerTest {
         assertNotNull(form);
         assertEquals("John", form.getUsername());
         assertEquals("user@example.com", form.getEmail());
+        // ✅ Also verify the active tab
+        assertEquals("profile", model.getAttribute("active"));
 
         verify(userService).getUserByEmail("user@example.com");
         verifyNoMoreInteractions(userService);
     }
 
-    // 2) GET /profile keeps existing form if already present (after redirect with errors)
+    // 2) GET /profile keeps the existing form if already present (after a redirect with errors)
     @Test
-    public void getProfil_whenFormAlreadyInModel_keepsExistingForm() {
+    void getProfil_whenFormAlreadyInModel_keepsExistingForm() {
         ConcurrentModel model = new ConcurrentModel();
         Principal principal = () -> "user@example.com";
 
-        // Existing form in the model (simulate flash after redirect)
         ProfileForm existing = new ProfileForm();
         existing.setUsername("ExistingName");
         existing.setEmail("existing@example.com");
         model.addAttribute("profileForm", existing);
 
-        User me = mock(User.class); // no stubs needed
+        User me = mock(User.class);
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
 
         String view = controller.getProfil(model, principal);
@@ -75,14 +74,16 @@ public class ProfileControllerTest {
         assertEquals("profile", view);
         assertSame(existing, model.getAttribute("profileForm")); // unchanged
         assertSame(me, model.getAttribute("me"));
+        // ✅ Also verify the active tab
+        assertEquals("profile", model.getAttribute("active"));
 
         verify(userService).getUserByEmail("user@example.com");
         verifyNoMoreInteractions(userService);
     }
 
-    // 3) GET /profile when user not found => throws IllegalArgumentException
+    // 3) GET /profile when user not found => IllegalArgumentException
     @Test
-    public void getProfil_whenUserNotFound_throws() {
+    void getProfil_whenUserNotFound_throws() {
         Model model = new ConcurrentModel();
         Principal principal = () -> "missing@example.com";
 
@@ -97,13 +98,13 @@ public class ProfileControllerTest {
 
     // 4) POST /profile success without email change => flashes "Profile updated."
     @Test
-    public void postProfil_success_noEmailChange_flashesSimpleSuccess() {
+    void postProfil_success_noEmailChange_flashesSimpleSuccess() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
         Principal principal = () -> "user@example.com";
 
         ProfileForm form = new ProfileForm();
         form.setUsername("John");
-        form.setEmail(" user@example.com "); // same after trim/ignore case
+        form.setEmail(" user@example.com "); // same email after trim/ignoreCase
         form.setCurrentPassword("curr");
         form.setNewPassword("new");
         form.setConfirmPassword("new");
@@ -123,7 +124,7 @@ public class ProfileControllerTest {
 
     // 5) POST /profile success with email change => flashes "Profile updated. If you changed your email, please sign in again."
     @Test
-    public void postProfil_success_emailChanged_flashesReLoginNotice() {
+    void postProfil_success_emailChanged_flashesReLoginNotice() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
         Principal principal = () -> "user@example.com";
 
@@ -146,9 +147,9 @@ public class ProfileControllerTest {
         assertFalse(ra.getFlashAttributes().containsKey("profileForm"));
     }
 
-    // 6) POST /profile when service throws => flashes error and returns redirect:/profile preserving the form
+    // 6) POST /profile service throws => flashes error + redirect:/profile while keeping a "safe form"
     @Test
-    public void postProfil_whenServiceThrows_flashesError_andKeepsForm() {
+    void postProfil_whenServiceThrows_flashesError_andKeepsSafeForm() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
         Principal principal = () -> "user@example.com";
 
@@ -169,7 +170,21 @@ public class ProfileControllerTest {
         verifyNoMoreInteractions(userService);
 
         assertEquals("Wrong current password", ra.getFlashAttributes().get("error"));
-        assertSame(form, ra.getFlashAttributes().get("profileForm")); // form is kept
+
+        // The controller puts a NEW "safe" ProfileForm into the flashes (not the same instance)
+        assertTrue(ra.getFlashAttributes().containsKey("profileForm"));
+        Object flashed = ra.getFlashAttributes().get("profileForm");
+        assertNotSame(form, flashed);
+        assertTrue(flashed instanceof ProfileForm);
+        ProfileForm safe = (ProfileForm) flashed;
+
+        // The "safe form" only contains username & email (password fields are not copied)
+        assertEquals("John", safe.getUsername());
+        assertEquals("user@example.com", safe.getEmail());
+        assertNull(safe.getCurrentPassword());
+        assertNull(safe.getNewPassword());
+        assertNull(safe.getConfirmPassword());
+
         assertFalse(ra.getFlashAttributes().containsKey("success"));
     }
 }
