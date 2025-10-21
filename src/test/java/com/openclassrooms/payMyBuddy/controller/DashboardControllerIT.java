@@ -1,6 +1,5 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.FriendForm;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.TransactionService;

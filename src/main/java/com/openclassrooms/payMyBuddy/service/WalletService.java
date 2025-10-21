@@ -45,10 +45,17 @@ public class WalletService {
     // 1) TOP UP: add money to the user's account in the app (0.5% fee)
     @Transactional
     public Transaction topUp(Integer userId, BigDecimal amount, String idempotencyKey, String description) {
+        if (userId == null) {
+            throw new IllegalArgumentException("userId is required");
+        }
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("idempotencyKey is required");
+        }
+        validateAmount(amount);
+
         Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
         if (existing != null) return existing;
 
-        validateAmount(amount);
         User user = userRepo.findById(userId).orElseThrow();
 
         BigDecimal gross = round(amount);
@@ -75,14 +82,16 @@ public class WalletService {
     // 2) P2P TRANSFER: transfer between users (0.5% fee)
     @Transactional
     public Transaction transferP2P(Integer senderId, Integer receiverId, BigDecimal amount, String idempotencyKey, String description) {
-        Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
-        if (existing != null) return existing;
-
         if (senderId == null || receiverId == null || senderId.equals(receiverId)) {
             throw new IllegalArgumentException("Invalid users");
         }
-
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("idempotencyKey is required");
+        }
         validateAmount(amount);
+
+        Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
+        if (existing != null) return existing;
 
         User sender = userRepo.findById(senderId).orElseThrow();
         User receiver = userRepo.findById(receiverId).orElseThrow();
@@ -117,10 +126,16 @@ public class WalletService {
     // WITHDRAWAL: transfer money to the user's bank account (0.5% fee)
     @Transactional
     public Transaction withdrawToBank(Integer userId, BigDecimal amount, String idempotencyKey, String description) {
+        if (userId == null) {
+            throw new IllegalArgumentException("userId is required");
+        }
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("idempotencyKey is required");
+        }
+        validateAmount(amount);
+
         Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
         if (existing != null) return existing;
-
-        validateAmount(amount);
 
         User user = userRepo.findById(userId).orElseThrow();
 

@@ -10,7 +10,6 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.ui.Model;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -76,7 +75,7 @@ public class LoginControllerTest {
                 Set.of(new SimpleGrantedAuthority("ROLE_USER")), attrs, "id");
 
         OAuth2AuthenticationToken token =
-                new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+                new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "facebook");
 
         String view = controller.home(token);
 
@@ -96,7 +95,7 @@ public class LoginControllerTest {
                 Set.of(new SimpleGrantedAuthority("ROLE_USER")), attrs, "id");
 
         OAuth2AuthenticationToken token =
-                new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+                new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "facebook");
 
         String view = controller.home(token);
 

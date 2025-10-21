@@ -1,11 +1,14 @@
 package com.openclassrooms.payMyBuddy.controller;
 
+import com.openclassrooms.payMyBuddy.security.SpringSecurityConfig;
 import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,6 +24,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(LoginController.class)
+@AutoConfigureMockMvc
+@Import(SpringSecurityConfig.class)
 public class LoginControllerIT {
 
     @Autowired MockMvc mvc;
@@ -56,14 +61,13 @@ public class LoginControllerIT {
         verifyNoInteractions(userService, transactionService);
     }
 
-    // GET / (home) OAuth2 with email & names -> creates/gets user then redirects to /transfer
+    // GET / (home) OAuth2 with email & name -> creates/gets user then redirects to /transfer
     @Test
     void home_oauth2User_createsOrGetsUser_and_redirects_transfer() throws Exception {
         Map<String, Object> attrs = new HashMap<>();
         attrs.put("id", "123");                    // principal name attribute
         attrs.put("email", "John.Doe@example.com");
-        attrs.put("given_name", "John");
-        attrs.put("family_name", "Doe");
+        attrs.put("name", "John Doe");             // neutre (pas spécifique à Google)
 
         List<GrantedAuthority> roles = List.of(new SimpleGrantedAuthority("ROLE_USER"));
 
@@ -85,7 +89,7 @@ public class LoginControllerIT {
 
         mvc.perform(get("/").with(oauth2Login().attributes(a -> a.putAll(attrs))))
                 .andExpect(status().isFound())
-                .andExpect(redirectedUrlPattern("**/login"));
+                .andExpect(redirectedUrl("/login"));
 
         verifyNoInteractions(userService, transactionService);
     }

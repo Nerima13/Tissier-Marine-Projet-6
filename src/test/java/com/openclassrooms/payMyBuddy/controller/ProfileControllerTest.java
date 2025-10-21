@@ -8,8 +8,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.ui.ConcurrentModel;
 import org.springframework.ui.Model;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
@@ -48,7 +50,7 @@ class ProfileControllerTest {
         assertNotNull(form);
         assertEquals("John", form.getUsername());
         assertEquals("user@example.com", form.getEmail());
-        // ✅ Also verify the active tab
+        // Also verify the active tab
         assertEquals("profile", model.getAttribute("active"));
 
         verify(userService).getUserByEmail("user@example.com");
@@ -74,7 +76,7 @@ class ProfileControllerTest {
         assertEquals("profile", view);
         assertSame(existing, model.getAttribute("profileForm")); // unchanged
         assertSame(me, model.getAttribute("me"));
-        // ✅ Also verify the active tab
+        //  Also verify the active tab
         assertEquals("profile", model.getAttribute("active"));
 
         verify(userService).getUserByEmail("user@example.com");
@@ -89,7 +91,12 @@ class ProfileControllerTest {
 
         when(userService.getUserByEmail("missing@example.com")).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> controller.getProfil(model, principal));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.getProfil(model, principal));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("User not found: missing@example.com"));
+
         verify(userService).getUserByEmail("missing@example.com");
         verifyNoMoreInteractions(userService);
     }

@@ -1,6 +1,7 @@
 package com.openclassrooms.payMyBuddy.controller;
 
 import com.openclassrooms.payMyBuddy.model.User;
+import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -99,10 +100,10 @@ class ProfileControllerIT {
     }
 
     @Test
-    void get_profile_user_not_found_returns_500() throws Exception {
+    void get_profile_user_not_found_returns_404() throws Exception {
         when(userService.getUserByEmail("missing@example.com")).thenReturn(Optional.empty());
 
         mvc.perform(get("/profile").with(user("missing@example.com").roles("USER")))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isNotFound());
     }
 }

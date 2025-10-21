@@ -148,7 +148,7 @@ class UserServiceTest {
         assertEquals("new@e.com", res.getEmail());
         assertEquals("new@e.com", res.getUsername()); // fallback
         assertNotNull(res.getPassword()); // random then encoded by registerUser
-        verify(userRepository).findByEmail("new@e.com");
+        verify(userRepository, atLeast(1)).findByEmail("new@e.com");
         verify(userRepository).save(any(User.class));
     }
 

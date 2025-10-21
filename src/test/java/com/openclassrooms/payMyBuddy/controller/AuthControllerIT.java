@@ -2,11 +2,15 @@ package com.openclassrooms.payMyBuddy.controller;
 
 import com.openclassrooms.payMyBuddy.dto.RegisterForm;
 import com.openclassrooms.payMyBuddy.model.User;
+import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
+import com.openclassrooms.payMyBuddy.security.SpringSecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.instanceOf;
@@ -20,11 +24,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
+@AutoConfigureMockMvc
+@Import(SpringSecurityConfig.class)
 public class AuthControllerIT {
 
     @Autowired MockMvc mvc;
 
     @MockBean UserService userService;
+    @MockBean TransactionService transactionService;
 
     // 1) GET /register: returns 200 and view "register" with an empty form in the model
     @Test

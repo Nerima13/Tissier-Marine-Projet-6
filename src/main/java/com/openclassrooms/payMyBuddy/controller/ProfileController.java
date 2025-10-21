@@ -3,11 +3,13 @@ package com.openclassrooms.payMyBuddy.controller;
 import com.openclassrooms.payMyBuddy.dto.ProfileForm;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.Principal;
@@ -25,7 +27,8 @@ public class ProfileController {
     @GetMapping("/profile")
     public String getProfil(Model model, Principal principal) {
         User me = userService.getUserByEmail(principal.getName())
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + principal.getName()));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User not found: " + principal.getName()));
         model.addAttribute("me", me);
 
         // If coming back from a redirect with errors/success, keep the existing form

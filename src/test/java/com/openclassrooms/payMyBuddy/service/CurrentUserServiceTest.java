@@ -52,8 +52,7 @@ class CurrentUserServiceTest {
                 List.of(new SimpleGrantedAuthority("ROLE_USER"));
         Map<String, Object> attrs = Map.of(
                 "sub", "123",
-                "email", "  Jane.DOE@Example.com "
-        );
+                "email", "  Jane.DOE@Example.com ");
         DefaultOAuth2User principal =
                 new DefaultOAuth2User(authorities, attrs, "sub");
         OAuth2AuthenticationToken token =
