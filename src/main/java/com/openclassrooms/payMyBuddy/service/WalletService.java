@@ -34,6 +34,12 @@ public class WalletService {
         }
     }
 
+    // Fetch the Bank user (users.is_bank = true)
+    private User bank() {
+        return userRepo.findFirstByIsBankTrue()
+                .orElseThrow(() -> new IllegalStateException("Bank user not found (is_bank = true)"));
+    }
+
     // 1) TOP UP: add money to the user's account in the app (0.5% fee)
     @Transactional
     public Transaction topUp(Integer userId, BigDecimal amount, String description) {
@@ -43,6 +49,7 @@ public class WalletService {
         validateAmount(amount);
 
         User user = userRepo.findById(userId).orElseThrow();
+        User bank = bank();
 
         BigDecimal gross = round(amount);
         BigDecimal fee = round(gross.multiply(FEE_RATE));
@@ -54,7 +61,7 @@ public class WalletService {
         // Save the transaction
         Transaction tx = new Transaction();
         tx.setType(TransactionType.TOP_UP);
-        tx.setSender(null);               // top-up => no internal sender
+        tx.setSender(bank);               // top-up =>  external source represented by Bank
         tx.setReceiver(user);
         tx.setDescription(description);
         tx.setGrossAmount(gross);
@@ -70,6 +77,13 @@ public class WalletService {
         if (senderId == null || receiverId == null || senderId.equals(receiverId)) {
             throw new IllegalArgumentException("Invalid users");
         }
+
+        // Guard: Bank user cannot participate in P2P transfers
+        User bank = bank();
+        if (senderId.equals(bank.getId()) || receiverId.equals(bank.getId())) {
+            throw new IllegalArgumentException("Bank user cannot participate in P2P transfers");
+        }
+
         validateAmount(amount);
 
         User sender = userRepo.findById(senderId).orElseThrow();
@@ -116,6 +130,8 @@ public class WalletService {
             throw new IllegalStateException("IBAN/BIC are required for withdrawal");
         }
 
+        User bank = bank();
+
         BigDecimal gross = round(amount);
         BigDecimal fee = round(gross.multiply(FEE_RATE));
         BigDecimal totalDebit = gross.add(fee); // what the user pays
@@ -131,7 +147,7 @@ public class WalletService {
         Transaction tx = new Transaction();
         tx.setType(TransactionType.WITHDRAWAL);
         tx.setSender(user);
-        tx.setReceiver(null); // outside the app
+        tx.setReceiver(bank); // outside the app represented by Bank
         tx.setDescription(description);
         tx.setGrossAmount(gross);
         tx.setFeeAmount(fee);

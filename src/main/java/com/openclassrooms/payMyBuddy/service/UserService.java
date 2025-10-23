@@ -106,9 +106,21 @@ public class UserService {
         if (senderId == null) throw new IllegalArgumentException("Sender id must not be null.");
         if (receiverEmail == null) throw new IllegalArgumentException("Receiver email must not be null.");
 
+        // Load sender (to ensure it's not the Bank user)
+        User sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new IllegalArgumentException("Sender not found : id = " + senderId));
+
+        if (sender.isBank()) {
+            throw new IllegalArgumentException("Bank user cannot participate in P2P transfers");
+        }
+
         String recEmail = receiverEmail.trim().toLowerCase();
         User receiver = userRepository.findByEmail(recEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Receiver not found : " + recEmail));
+
+        if (receiver.isBank()) {
+            throw new IllegalArgumentException("Bank user cannot participate in P2P transfers");
+        }
 
         String desc = (description == null || description.trim().isEmpty())
                 ? ("Transfer to " + receiver.getEmail())

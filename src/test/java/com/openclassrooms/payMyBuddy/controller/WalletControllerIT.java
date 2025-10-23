@@ -2,12 +2,14 @@ package com.openclassrooms.payMyBuddy.controller;
 
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
+import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import com.openclassrooms.payMyBuddy.service.WalletService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -28,6 +30,7 @@ class WalletControllerIT {
     @MockBean WalletService walletService;
     @MockBean UserService userService;
     @MockBean CurrentUserService currentUserService;
+    @MockBean TransactionService transactionService;
 
     // DEPOSIT TESTS
 
@@ -49,7 +52,7 @@ class WalletControllerIT {
 
         verify(currentUserService).requireEmail(any());
         verify(userService).getUserByEmail("user@example.com");
-        verify(walletService).topUp(eq(1), eq(new BigDecimal("100.00")), anyString(), eq("Top up"));
+        verify(walletService).topUp(eq(1), eq(new BigDecimal("100.00")), eq("Top up"));
     }
 
     // POST /deposit: service throws -> flashes error and redirects to /transfer
@@ -59,7 +62,7 @@ class WalletControllerIT {
         User me = new User(); me.setId(1); me.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
         doThrow(new IllegalArgumentException("Deposit failed"))
-                .when(walletService).topUp(eq(1), eq(new BigDecimal("50.00")), anyString(), eq("Fail"));
+                .when(walletService).topUp(eq(1), eq(new BigDecimal("50.00")), eq("Fail"));
 
         mvc.perform(post("/deposit")
                         .with(user("user@example.com").roles("USER"))
@@ -70,7 +73,7 @@ class WalletControllerIT {
                 .andExpect(redirectedUrl("/transfer"))
                 .andExpect(flash().attribute("error", "Deposit failed"));
 
-        verify(walletService).topUp(eq(1), eq(new BigDecimal("50.00")), anyString(), eq("Fail"));
+        verify(walletService).topUp(eq(1), eq(new BigDecimal("50.00")), eq("Fail"));
     }
 
     // POST /deposit: defensive check -> if CurrentUserService throws, controller catches and flashes the error
@@ -109,7 +112,7 @@ class WalletControllerIT {
                 .andExpect(redirectedUrl("/transfer"))
                 .andExpect(flash().attribute("success", "Withdrawal initiated (0.5% fee applied)."));
 
-        verify(walletService).withdrawToBank(eq(2), eq(new BigDecimal("20.00")), anyString(), eq("Cash out"));
+        verify(walletService).withdrawToBank(eq(2), eq(new BigDecimal("20.00")), eq("Cash out"));
     }
 
     // POST /withdraw: service throws -> flashes error and redirects to /transfer
@@ -119,7 +122,7 @@ class WalletControllerIT {
         User me = new User(); me.setId(2); me.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
         doThrow(new IllegalArgumentException("Withdrawal failed"))
-                .when(walletService).withdrawToBank(eq(2), eq(new BigDecimal("200.00")), anyString(), eq("Too much"));
+                .when(walletService).withdrawToBank(eq(2), eq(new BigDecimal("200.00")), eq("Too much"));
 
         mvc.perform(post("/withdraw")
                         .with(user("user@example.com").roles("USER"))
@@ -130,7 +133,7 @@ class WalletControllerIT {
                 .andExpect(redirectedUrl("/transfer"))
                 .andExpect(flash().attribute("error", "Withdrawal failed"));
 
-        verify(walletService).withdrawToBank(eq(2), eq(new BigDecimal("200.00")), anyString(), eq("Too much"));
+        verify(walletService).withdrawToBank(eq(2), eq(new BigDecimal("200.00")), eq("Too much"));
     }
 
     // TRANSFER TESTS
@@ -156,7 +159,7 @@ class WalletControllerIT {
 
         verify(userService).getUserByEmail("sender@example.com");
         verify(userService).getUserByEmail("friend@example.com");
-        verify(walletService).transferP2P(eq(10), eq(20), eq(new BigDecimal("15.75")), anyString(), eq("Thanks"));
+        verify(walletService).transferP2P(eq(10), eq(20), eq(new BigDecimal("15.75")), eq("Thanks"));
     }
 
     // POST /transfer: receiver not found -> flashes "Receiver not found" and redirects

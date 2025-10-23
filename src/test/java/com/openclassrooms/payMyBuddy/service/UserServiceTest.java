@@ -37,6 +37,13 @@ class UserServiceTest {
         u.setPassword(encodedPassword);
         u.setBalance(new BigDecimal(balance));
         u.setConnections(new HashSet<>());
+        u.setBank(false);
+        return u;
+    }
+
+    private User buildBankUser(Integer id, String email) {
+        User u = buildUser(id, email, "Bank", "enc", "0");
+        u.setBank(true);
         return u;
     }
 
@@ -173,7 +180,7 @@ class UserServiceTest {
         verify(userRepository).findById(1);
     }
 
-    // User not found should throw
+    // Returns the current balance, errors if user absent
     @Test
     void getBalance_userMissing_throws() {
         when(userRepository.findById(1)).thenReturn(Optional.empty());
@@ -191,9 +198,9 @@ class UserServiceTest {
         BigDecimal result = service.deposit(1, new BigDecimal("25.00"));
 
         assertEquals(new BigDecimal("50.00"), result);
-        verify(walletService).topUp(eq(1), eq(new BigDecimal("25.00")), anyString(), eq("Deposit"));
+        verify(walletService).topUp(eq(1), eq(new BigDecimal("25.00")), eq("Deposit"));
         InOrder order = inOrder(walletService, userRepository);
-        order.verify(walletService).topUp(eq(1), eq(new BigDecimal("25.00")), anyString(), eq("Deposit"));
+        order.verify(walletService).topUp(eq(1), eq(new BigDecimal("25.00")), eq("Deposit"));
         order.verify(userRepository).findById(1);
     }
 
@@ -209,33 +216,42 @@ class UserServiceTest {
     // Resolves receiver by email and delegates to walletService.transferP2P
     @Test
     void transfer_resolvesReceiver_andDelegates() {
+        User sender = buildUser(1, "me@example.com", "Me", "enc", "0");
+        when(userRepository.findById(1)).thenReturn(Optional.of(sender));
+
         User receiver = buildUser(2, "friend@example.com", "Friend", "enc", "0");
         when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.of(receiver));
 
         Transaction fake = new Transaction();
-        when(walletService.transferP2P(eq(1), eq(2), eq(new BigDecimal("10.00")), anyString(), eq("Coffee")))
+        when(walletService.transferP2P(eq(1), eq(2), eq(new BigDecimal("10.00")), eq("Coffee")))
                 .thenReturn(fake);
 
         Transaction res = service.transfer(1, "  FRIEND@example.com  ", new BigDecimal("10.00"), "  Coffee  ");
 
         assertSame(fake, res);
+        verify(userRepository).findById(1);
         verify(userRepository).findByEmail("friend@example.com");
-        verify(walletService).transferP2P(eq(1), eq(2), eq(new BigDecimal("10.00")), anyString(), eq("Coffee"));
+        verify(walletService).transferP2P(eq(1), eq(2), eq(new BigDecimal("10.00")), eq("Coffee"));
     }
 
     // Null description → uses default "Transfer to <email>"
     @Test
     void transfer_nullDescription_usesDefaultMessage() {
+        User sender = buildUser(1, "me@example.com", "Me", "enc", "0");
+        when(userRepository.findById(1)).thenReturn(Optional.of(sender));
+
         User receiver = buildUser(2, "friend@example.com", "Friend", "enc", "0");
         when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.of(receiver));
 
-        when(walletService.transferP2P(eq(1), eq(2), eq(new BigDecimal("5.00")), anyString(),
+        when(walletService.transferP2P(eq(1), eq(2), eq(new BigDecimal("5.00")),
                 eq("Transfer to friend@example.com"))).thenReturn(new Transaction());
 
         service.transfer(1, "friend@example.com", new BigDecimal("5.00"), null);
 
+        verify(userRepository).findById(1);
+        verify(userRepository).findByEmail("friend@example.com");
         verify(walletService).transferP2P(eq(1), eq(2), eq(new BigDecimal("5.00")),
-                anyString(), eq("Transfer to friend@example.com"));
+                eq("Transfer to friend@example.com"));
     }
 
     // Missing receiver or sender should throw
@@ -251,14 +267,51 @@ class UserServiceTest {
     // Receiver not found should throw
     @Test
     void transfer_receiverNotFound_throws() {
+        User sender = buildUser(1, "me@example.com", "Me", "enc", "0");
+        when(userRepository.findById(1)).thenReturn(Optional.of(sender));
+
         when(userRepository.findByEmail("missing@e.com")).thenReturn(Optional.empty());
+
         assertThrows(IllegalArgumentException.class,
                 () -> service.transfer(1, " missing@E.com ", new BigDecimal("1.00"), "x"));
+
+        verify(userRepository).findById(1);
         verify(userRepository).findByEmail("missing@e.com");
         verifyNoInteractions(walletService);
     }
 
-    // CONNECTIONS MANAGEMENT
+    @Test
+    void transfer_senderIsBank_throws() {
+        User bank = buildBankUser(100, "bank@gmail.com");
+        when(userRepository.findById(100)).thenReturn(Optional.of(bank));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.transfer(100, "friend@example.com", new BigDecimal("10.00"), "x"));
+        assertTrue(ex.getMessage().toLowerCase().contains("bank user"));
+
+        verify(userRepository).findById(100);
+        verify(userRepository, never()).findByEmail(anyString());
+        verifyNoInteractions(walletService);
+    }
+
+    @Test
+    void transfer_receiverIsBank_throws() {
+        User sender = buildUser(1, "me@example.com", "Me", "enc", "0");
+        when(userRepository.findById(1)).thenReturn(Optional.of(sender));
+
+        User bank = buildBankUser(100, "bank@gmail.com");
+        when(userRepository.findByEmail("bank@gmail.com")).thenReturn(Optional.of(bank));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.transfer(1, "bank@gmail.com", new BigDecimal("10.00"), "x"));
+        assertTrue(ex.getMessage().toLowerCase().contains("bank user"));
+
+        verify(userRepository).findById(1);
+        verify(userRepository).findByEmail("bank@gmail.com");
+        verifyNoInteractions(walletService);
+    }
+
+    // CONNECTIONS
 
     // Success adds friend and saves owner
     @Test

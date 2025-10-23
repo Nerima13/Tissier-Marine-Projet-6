@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,7 +53,7 @@ class WalletControllerTest {
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Deposit completed (0.5% fee applied).", ra.getFlashAttributes().get("success"));
-        verify(walletService).topUp(eq(1), eq(new BigDecimal("100")), anyString(), eq("Deposit test"));
+        verify(walletService).topUp(eq(1), eq(new BigDecimal("100")), eq("Deposit test"));
     }
 
     // Deposit failure → service throws, flash error message, redirect to /transfer
@@ -69,8 +70,8 @@ class WalletControllerTest {
         form.setAmount(new BigDecimal("50"));
         form.setDescription("Fail test");
 
-        doThrow(new IllegalArgumentException("Deposit failed")).when(walletService)
-                .topUp(eq(1), eq(new BigDecimal("50")), anyString(), eq("Fail test"));
+        doThrow(new IllegalArgumentException("Deposit failed"))
+                .when(walletService).topUp(eq(1), eq(new BigDecimal("50")), eq("Fail test"));
 
         String view = controller.deposit(form, auth, ra);
 
@@ -98,7 +99,7 @@ class WalletControllerTest {
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Withdrawal initiated (0.5% fee applied).", ra.getFlashAttributes().get("success"));
-        verify(walletService).withdrawToBank(eq(2), eq(new BigDecimal("20")), anyString(), eq("Withdraw test"));
+        verify(walletService).withdrawToBank(eq(2), eq(new BigDecimal("20")), eq("Withdraw test"));
     }
 
     // Withdraw failure → service throws, flash error message
@@ -115,8 +116,8 @@ class WalletControllerTest {
         form.setAmount(new BigDecimal("200"));
         form.setDescription("Fail withdraw");
 
-        doThrow(new IllegalArgumentException("Withdraw failed")).when(walletService)
-                .withdrawToBank(eq(2), eq(new BigDecimal("200")), anyString(), eq("Fail withdraw"));
+        doThrow(new IllegalArgumentException("Withdraw failed"))
+                .when(walletService).withdrawToBank(eq(2), eq(new BigDecimal("200")), eq("Fail withdraw"));
 
         String view = controller.withdraw(form, auth, ra);
 
@@ -148,7 +149,7 @@ class WalletControllerTest {
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Transfer sent (0.5% fee paid by the sender).", ra.getFlashAttributes().get("success"));
-        verify(walletService).transferP2P(eq(1), eq(2), eq(new BigDecimal("10")), anyString(), eq("Transfer test"));
+        verify(walletService).transferP2P(eq(1), eq(2), eq(new BigDecimal("10")), eq("Transfer test"));
     }
 
     // Transfer failure → receiver not found → flash "Receiver not found"

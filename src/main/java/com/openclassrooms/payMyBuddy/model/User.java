@@ -44,6 +44,9 @@ public class User {
     @Column(name = "bic", length = 11)
     private String bic;
 
+    @Column(name = "is_bank", nullable = false)
+    private boolean isBank = false;
+
     // Connections
     @ManyToMany
     @JoinTable(
