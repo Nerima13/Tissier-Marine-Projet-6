@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,26 +34,13 @@ public class WalletService {
         }
     }
 
-    // If a transaction with the same key already exists, return it
-    private Transaction findExistingByIdempotencyKey(String idempotencyKey) {
-        if (idempotencyKey == null) return null;
-        Optional<Transaction> existing = txRepo.findByIdempotencyKey(idempotencyKey);
-        return existing.orElse(null);
-    }
-
     // 1) TOP UP: add money to the user's account in the app (0.5% fee)
     @Transactional
-    public Transaction topUp(Integer userId, BigDecimal amount, String idempotencyKey, String description) {
+    public Transaction topUp(Integer userId, BigDecimal amount, String description) {
         if (userId == null) {
             throw new IllegalArgumentException("userId is required");
         }
-        if (idempotencyKey == null || idempotencyKey.isBlank()) {
-            throw new IllegalArgumentException("idempotencyKey is required");
-        }
         validateAmount(amount);
-
-        Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
-        if (existing != null) return existing;
 
         User user = userRepo.findById(userId).orElseThrow();
 
@@ -74,24 +60,17 @@ public class WalletService {
         tx.setGrossAmount(gross);
         tx.setFeeAmount(fee);
         tx.setNetAmount(net);
-        tx.setIdempotencyKey(idempotencyKey);
 
         return txRepo.save(tx);
     }
 
     // 2) P2P TRANSFER: transfer between users (0.5% fee)
     @Transactional
-    public Transaction transferP2P(Integer senderId, Integer receiverId, BigDecimal amount, String idempotencyKey, String description) {
+    public Transaction transferP2P(Integer senderId, Integer receiverId, BigDecimal amount, String description) {
         if (senderId == null || receiverId == null || senderId.equals(receiverId)) {
             throw new IllegalArgumentException("Invalid users");
         }
-        if (idempotencyKey == null || idempotencyKey.isBlank()) {
-            throw new IllegalArgumentException("idempotencyKey is required");
-        }
         validateAmount(amount);
-
-        Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
-        if (existing != null) return existing;
 
         User sender = userRepo.findById(senderId).orElseThrow();
         User receiver = userRepo.findById(receiverId).orElseThrow();
@@ -105,7 +84,7 @@ public class WalletService {
             throw new IllegalStateException("Insufficient balance");
         }
 
-        // Balance updates: debit full amount, credit net amount to receiver
+        // Balance updates: debit full amount, credit gross amount to receiver
         sender.setBalance(sender.getBalance().subtract(totalDebit));
         receiver.setBalance(receiver.getBalance().add(gross));
 
@@ -118,24 +97,17 @@ public class WalletService {
         tx.setGrossAmount(gross);
         tx.setFeeAmount(fee);
         tx.setNetAmount(gross);
-        tx.setIdempotencyKey(idempotencyKey);
 
         return txRepo.save(tx);
     }
 
     // WITHDRAWAL: transfer money to the user's bank account (0.5% fee)
     @Transactional
-    public Transaction withdrawToBank(Integer userId, BigDecimal amount, String idempotencyKey, String description) {
+    public Transaction withdrawToBank(Integer userId, BigDecimal amount, String description) {
         if (userId == null) {
             throw new IllegalArgumentException("userId is required");
         }
-        if (idempotencyKey == null || idempotencyKey.isBlank()) {
-            throw new IllegalArgumentException("idempotencyKey is required");
-        }
         validateAmount(amount);
-
-        Transaction existing = findExistingByIdempotencyKey(idempotencyKey);
-        if (existing != null) return existing;
 
         User user = userRepo.findById(userId).orElseThrow();
 
@@ -146,7 +118,7 @@ public class WalletService {
 
         BigDecimal gross = round(amount);
         BigDecimal fee = round(gross.multiply(FEE_RATE));
-        BigDecimal totalDebit = gross.add(fee); // ce que l'utilisateur paie
+        BigDecimal totalDebit = gross.add(fee); // what the user pays
 
         if (user.getBalance().compareTo(totalDebit) < 0) {
             throw new IllegalStateException("Insufficient balance for withdrawal + fee");
@@ -164,7 +136,6 @@ public class WalletService {
         tx.setGrossAmount(gross);
         tx.setFeeAmount(fee);
         tx.setNetAmount(gross);
-        tx.setIdempotencyKey(idempotencyKey);
 
         return txRepo.save(tx);
     }

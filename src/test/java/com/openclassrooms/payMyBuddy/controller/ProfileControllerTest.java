@@ -1,6 +1,6 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.ProfileForm;
+import com.openclassrooms.payMyBuddy.dto.ProfileDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,7 @@ class ProfileControllerTest {
         assertEquals("profile", view);
         assertSame(me, model.getAttribute("me"));
         assertTrue(model.containsAttribute("profileForm"));
-        ProfileForm form = (ProfileForm) model.getAttribute("profileForm");
+        ProfileDTO form = (ProfileDTO) model.getAttribute("profileForm");
         assertNotNull(form);
         assertEquals("John", form.getUsername());
         assertEquals("user@example.com", form.getEmail());
@@ -63,7 +63,7 @@ class ProfileControllerTest {
         ConcurrentModel model = new ConcurrentModel();
         Principal principal = () -> "user@example.com";
 
-        ProfileForm existing = new ProfileForm();
+        ProfileDTO existing = new ProfileDTO();
         existing.setUsername("ExistingName");
         existing.setEmail("existing@example.com");
         model.addAttribute("profileForm", existing);
@@ -109,7 +109,7 @@ class ProfileControllerTest {
         RedirectAttributes ra = new RedirectAttributesModelMap();
         Principal principal = () -> "user@example.com";
 
-        ProfileForm form = new ProfileForm();
+        ProfileDTO form = new ProfileDTO();
         form.setUsername("John");
         form.setEmail(" user@example.com "); // same email after trim/ignoreCase
         form.setCurrentPassword("curr");
@@ -135,7 +135,7 @@ class ProfileControllerTest {
         RedirectAttributes ra = new RedirectAttributesModelMap();
         Principal principal = () -> "user@example.com";
 
-        ProfileForm form = new ProfileForm();
+        ProfileDTO form = new ProfileDTO();
         form.setUsername("John");
         form.setEmail(" new.email@example.com "); // different after trim/lowercase compare
         form.setCurrentPassword("curr");
@@ -160,7 +160,7 @@ class ProfileControllerTest {
         RedirectAttributes ra = new RedirectAttributesModelMap();
         Principal principal = () -> "user@example.com";
 
-        ProfileForm form = new ProfileForm();
+        ProfileDTO form = new ProfileDTO();
         form.setUsername("John");
         form.setEmail("user@example.com");
         form.setCurrentPassword("bad");
@@ -182,8 +182,8 @@ class ProfileControllerTest {
         assertTrue(ra.getFlashAttributes().containsKey("profileForm"));
         Object flashed = ra.getFlashAttributes().get("profileForm");
         assertNotSame(form, flashed);
-        assertTrue(flashed instanceof ProfileForm);
-        ProfileForm safe = (ProfileForm) flashed;
+        assertTrue(flashed instanceof ProfileDTO);
+        ProfileDTO safe = (ProfileDTO) flashed;
 
         // The "safe form" only contains username & email (password fields are not copied)
         assertEquals("John", safe.getUsername());

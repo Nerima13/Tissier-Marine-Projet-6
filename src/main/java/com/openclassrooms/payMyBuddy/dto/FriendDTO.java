@@ -5,15 +5,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
-public class WithdrawForm {
+@Getter @Setter
+public class FriendDTO {
 
-    private BigDecimal amount;
-
-    private String description;
+    private String email;
 }

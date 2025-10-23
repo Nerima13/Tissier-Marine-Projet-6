@@ -1,7 +1,7 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.FriendForm;
-import com.openclassrooms.payMyBuddy.dto.TransferForm;
+import com.openclassrooms.payMyBuddy.dto.FriendDTO;
+import com.openclassrooms.payMyBuddy.dto.TransferDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.TransactionService;
@@ -19,9 +19,7 @@ public class DashboardController {
     private final TransactionService transactionService;
     private final CurrentUserService currentUserService;
 
-    public DashboardController(UserService userService,
-                               TransactionService transactionService,
-                               CurrentUserService currentUserService) {
+    public DashboardController(UserService userService, TransactionService transactionService, CurrentUserService currentUserService) {
         this.userService = userService;
         this.transactionService = transactionService;
         this.currentUserService = currentUserService;
@@ -37,25 +35,25 @@ public class DashboardController {
         model.addAttribute("me", me);
         model.addAttribute("friends", me.getConnections());
         model.addAttribute("feed", transactionService.getFeedForUser(me.getId()));
-        model.addAttribute("friendForm", new FriendForm());
-        model.addAttribute("transferForm", new TransferForm());
+        model.addAttribute("friendForm", new FriendDTO());
+        model.addAttribute("transferForm", new TransferDTO());
         return "dashboard";
     }
 
     // Add a friend by email
     @PostMapping("/connections")
-    public String addFriend(@ModelAttribute("friendForm") FriendForm form,
+    public String addFriend(@ModelAttribute("friendForm") FriendDTO dto,
                             Authentication authentication,
                             RedirectAttributes ra) {
 
         String currentEmail = currentUserService.requireEmail(authentication);
 
-        if (form.getEmail() == null || form.getEmail().trim().isEmpty()) {
+        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
             ra.addFlashAttribute("error", "Please enter a friend's email.");
             return "redirect:/connections";
         }
 
-        String friendEmail = form.getEmail().trim().toLowerCase();
+        String friendEmail = dto.getEmail().trim().toLowerCase();
         if (friendEmail.equalsIgnoreCase(currentEmail)) {
             ra.addFlashAttribute("error", "You cannot add yourself.");
             return "redirect:/connections";
@@ -79,7 +77,7 @@ public class DashboardController {
 
         model.addAttribute("me", me);
         if (!model.containsAttribute("friendForm")) {
-            model.addAttribute("friendForm", new FriendForm());
+            model.addAttribute("friendForm", new FriendDTO());
         }
         model.addAttribute("active", "add");
 

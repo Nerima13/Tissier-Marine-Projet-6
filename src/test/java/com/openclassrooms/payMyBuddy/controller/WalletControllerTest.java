@@ -1,8 +1,8 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.DepositForm;
-import com.openclassrooms.payMyBuddy.dto.TransferForm;
-import com.openclassrooms.payMyBuddy.dto.WithdrawForm;
+import com.openclassrooms.payMyBuddy.dto.DepositDTO;
+import com.openclassrooms.payMyBuddy.dto.TransferDTO;
+import com.openclassrooms.payMyBuddy.dto.WithdrawDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.UserService;
@@ -44,7 +44,7 @@ class WalletControllerTest {
         User user = new User(); user.setId(1); user.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
 
-        DepositForm form = new DepositForm();
+        DepositDTO form = new DepositDTO();
         form.setAmount(new BigDecimal("100"));
         form.setDescription("Deposit test");
 
@@ -65,7 +65,7 @@ class WalletControllerTest {
         User user = new User(); user.setId(1); user.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
 
-        DepositForm form = new DepositForm();
+        DepositDTO form = new DepositDTO();
         form.setAmount(new BigDecimal("50"));
         form.setDescription("Fail test");
 
@@ -90,7 +90,7 @@ class WalletControllerTest {
         User user = new User(); user.setId(2); user.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
 
-        WithdrawForm form = new WithdrawForm();
+        WithdrawDTO form = new WithdrawDTO();
         form.setAmount(new BigDecimal("20"));
         form.setDescription("Withdraw test");
 
@@ -111,7 +111,7 @@ class WalletControllerTest {
         User user = new User(); user.setId(2); user.setEmail("user@example.com");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
 
-        WithdrawForm form = new WithdrawForm();
+        WithdrawDTO form = new WithdrawDTO();
         form.setAmount(new BigDecimal("200"));
         form.setDescription("Fail withdraw");
 
@@ -139,7 +139,7 @@ class WalletControllerTest {
         when(userService.getUserByEmail("sender@example.com")).thenReturn(Optional.of(sender));
         when(userService.getUserByEmail("receiver@example.com")).thenReturn(Optional.of(receiver));
 
-        TransferForm form = new TransferForm();
+        TransferDTO form = new TransferDTO();
         form.setReceiverEmail("receiver@example.com");
         form.setAmount(new BigDecimal("10"));
         form.setDescription("Transfer test");
@@ -162,7 +162,7 @@ class WalletControllerTest {
         when(userService.getUserByEmail("sender@example.com")).thenReturn(Optional.of(sender));
         when(userService.getUserByEmail("missing@example.com")).thenReturn(Optional.empty());
 
-        TransferForm form = new TransferForm();
+        TransferDTO form = new TransferDTO();
         form.setReceiverEmail("missing@example.com");
         form.setAmount(new BigDecimal("5"));
         form.setDescription("Receiver missing");

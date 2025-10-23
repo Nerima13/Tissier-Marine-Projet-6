@@ -1,6 +1,6 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.RegisterForm;
+import com.openclassrooms.payMyBuddy.dto.RegisterDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
@@ -39,7 +39,7 @@ public class AuthControllerIT {
         mvc.perform(get("/register"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("register"))
-                .andExpect(model().attribute("form", instanceOf(RegisterForm.class)));
+                .andExpect(model().attribute("form", instanceOf(RegisterDTO.class)));
     }
 
     // 2) POST /register with missing required fields: returns "register" with error and keeps the form

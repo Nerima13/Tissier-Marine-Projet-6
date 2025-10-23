@@ -38,7 +38,6 @@ class WalletServiceTest {
         Transaction t = new Transaction();
         t.setId(1);
         t.setType(type);
-        t.setIdempotencyKey(idempotencyKey);
         return t;
     }
 
@@ -69,7 +68,6 @@ class WalletServiceTest {
         assertEquals(new BigDecimal("0.50"), tr.getFeeAmount());
         assertEquals(new BigDecimal("99.50"), tr.getNetAmount());
         assertEquals("Deposit", tr.getDescription());
-        assertEquals("idempotency-key-1", tr.getIdempotencyKey());
     }
 
     // Idempotency: if a transaction with the same key exists, return it and skip processing

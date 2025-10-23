@@ -1,6 +1,6 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.RegisterForm;
+import com.openclassrooms.payMyBuddy.dto.RegisterDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -35,7 +35,7 @@ public class AuthControllerTest {
         assertEquals("register", view);
         assertTrue(model.containsAttribute("form"));
         assertNotNull(model.getAttribute("form"));
-        assertTrue(model.getAttribute("form") instanceof RegisterForm);
+        assertTrue(model.getAttribute("form") instanceof RegisterDTO);
         verifyNoInteractions(userService);
     }
 
@@ -43,7 +43,7 @@ public class AuthControllerTest {
     @Test
     public void register_whenRequiredFieldsAreNull_returnsRegisterWithError() {
         Model model = new ConcurrentModel();
-        RegisterForm form = new RegisterForm();
+        RegisterDTO form = new RegisterDTO();
         form.setEmail(null);
         form.setPassword(null);
         form.setConfirmPassword(null);
@@ -60,7 +60,7 @@ public class AuthControllerTest {
     @Test
     public void register_whenFieldsAreBlankAfterTrim_returnsRegisterWithError() {
         Model model = new ConcurrentModel();
-        RegisterForm form = new RegisterForm();
+        RegisterDTO form = new RegisterDTO();
         form.setEmail("   ");
         form.setPassword("   ");
         form.setConfirmPassword("   ");
@@ -77,7 +77,7 @@ public class AuthControllerTest {
     @Test
     public void register_whenPasswordsDoNotMatch_returnsRegisterWithError() {
         Model model = new ConcurrentModel();
-        RegisterForm form = new RegisterForm();
+        RegisterDTO form = new RegisterDTO();
         form.setEmail("user@example.com");
         form.setPassword("password1");
         form.setConfirmPassword("password2");
@@ -94,7 +94,7 @@ public class AuthControllerTest {
     @Test
     public void register_success_callsService_withNormalizedValues_andRedirectsToLogin() {
         Model model = new ConcurrentModel();
-        RegisterForm form = new RegisterForm();
+        RegisterDTO form = new RegisterDTO();
         form.setEmail("  JOHN.DOE@Example.COM  ");   // will be trimmed + lowercased
         form.setPassword("  password  ");            // will be trimmed
         form.setConfirmPassword("password");         // matches after trim
@@ -119,7 +119,7 @@ public class AuthControllerTest {
     @Test
     public void register_whenServiceThrows_returnsRegisterWithServiceMessage() {
         Model model = new ConcurrentModel();
-        RegisterForm form = new RegisterForm();
+        RegisterDTO form = new RegisterDTO();
         form.setEmail("taken@example.com");
         form.setPassword("secret");
         form.setConfirmPassword("secret");

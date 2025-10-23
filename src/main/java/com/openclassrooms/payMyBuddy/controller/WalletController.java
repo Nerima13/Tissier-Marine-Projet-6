@@ -1,8 +1,8 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.DepositForm;
-import com.openclassrooms.payMyBuddy.dto.TransferForm;
-import com.openclassrooms.payMyBuddy.dto.WithdrawForm;
+import com.openclassrooms.payMyBuddy.dto.DepositDTO;
+import com.openclassrooms.payMyBuddy.dto.TransferDTO;
+import com.openclassrooms.payMyBuddy.dto.WithdrawDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.UserService;
@@ -35,14 +35,13 @@ public class WalletController {
 
     // Deposit money to the wallet (0.5% fee)
     @PostMapping("/deposit")
-    public String deposit(@ModelAttribute DepositForm form, Authentication auth, RedirectAttributes ra) {
+    public String deposit(@ModelAttribute DepositDTO dto, Authentication auth, RedirectAttributes ra) {
         try {
             User u = me(auth);
             walletService.topUp(
                     u.getId(),
-                    form.getAmount(),
-                    UUID.randomUUID().toString(),  // prevents duplicate processing
-                    form.getDescription());
+                    dto.getAmount(),
+                    dto.getDescription());
             ra.addFlashAttribute("success", "Deposit completed (0.5% fee applied).");
         } catch (Exception e) {
             log.warn("Deposit failed: {}", e.getMessage());
@@ -53,14 +52,13 @@ public class WalletController {
 
     // Withdraw money to the bank (0.5% fee)
     @PostMapping("/withdraw")
-    public String withdraw(@ModelAttribute WithdrawForm form, Authentication auth, RedirectAttributes ra) {
+    public String withdraw(@ModelAttribute WithdrawDTO dto, Authentication auth, RedirectAttributes ra) {
         try {
             User u = me(auth);
             walletService.withdrawToBank(
                     u.getId(),
-                    form.getAmount(),
-                    UUID.randomUUID().toString(),
-                    form.getDescription());
+                    dto.getAmount(),
+                    dto.getDescription());
             ra.addFlashAttribute("success", "Withdrawal initiated (0.5% fee applied).");
         } catch (Exception e) {
             log.warn("Withdraw failed: {}", e.getMessage());
@@ -71,18 +69,17 @@ public class WalletController {
 
     // P2P transfer (sender pays the 0.5% fee; receiver gets the full amount)
     @PostMapping("/transfer")
-    public String transfer(@ModelAttribute TransferForm form, Authentication auth, RedirectAttributes ra) {
+    public String transfer(@ModelAttribute TransferDTO dto, Authentication auth, RedirectAttributes ra) {
         try {
             User sender = me(auth);
-            User receiver = userService.getUserByEmail(form.getReceiverEmail())
+            User receiver = userService.getUserByEmail(dto.getReceiverEmail())
                     .orElseThrow(() -> new IllegalArgumentException("Receiver not found"));
 
             walletService.transferP2P(
                     sender.getId(),
                     receiver.getId(),
-                    form.getAmount(),
-                    UUID.randomUUID().toString(),
-                    form.getDescription());
+                    dto.getAmount(),
+                    dto.getDescription());
             ra.addFlashAttribute("success", "Transfer sent (0.5% fee paid by the sender).");
         } catch (Exception e) {
             log.warn("Transfer failed: {}", e.getMessage());

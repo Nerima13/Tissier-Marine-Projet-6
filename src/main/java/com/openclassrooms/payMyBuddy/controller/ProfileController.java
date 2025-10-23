@@ -1,6 +1,6 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.ProfileForm;
+import com.openclassrooms.payMyBuddy.dto.ProfileDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -33,10 +33,10 @@ public class ProfileController {
 
         // If coming back from a redirect with errors/success, keep the existing form
         if (!model.containsAttribute("profileForm")) {
-            ProfileForm form = new ProfileForm();
-            form.setUsername(me.getUsername());
-            form.setEmail(me.getEmail());
-            model.addAttribute("profileForm", form);
+            ProfileDTO dto = new ProfileDTO();
+            dto.setUsername(me.getUsername());
+            dto.setEmail(me.getEmail());
+            model.addAttribute("profileForm", dto);
         }
         model.addAttribute("active", "profile");
 
@@ -45,25 +45,25 @@ public class ProfileController {
 
     // Handle profile update
     @PostMapping("/profile")
-    public String postProfil(@ModelAttribute("profileForm") ProfileForm form, Principal principal, RedirectAttributes ra) {
+    public String postProfil(@ModelAttribute("profileForm") ProfileDTO dto, Principal principal, RedirectAttributes ra) {
         try {
             userService.updateProfile(
                     principal.getName(),
-                    form.getUsername(),
-                    form.getEmail(),
-                    form.getCurrentPassword(),
-                    form.getNewPassword(),
-                    form.getConfirmPassword());
+                    dto.getUsername(),
+                    dto.getEmail(),
+                    dto.getCurrentPassword(),
+                    dto.getNewPassword(),
+                    dto.getConfirmPassword());
 
-            if (form.getEmail() != null && !form.getEmail().trim().equalsIgnoreCase(principal.getName())) {
+            if (dto.getEmail() != null && !dto.getEmail().trim().equalsIgnoreCase(principal.getName())) {
                 ra.addFlashAttribute("success", "Profile updated. If you changed your email, please sign in again.");
             } else {
                 ra.addFlashAttribute("success", "Profile updated.");
             }
         } catch (IllegalArgumentException ex) {
-            ProfileForm safe = new ProfileForm();
-            safe.setUsername(form.getUsername());
-            safe.setEmail(form.getEmail());
+            ProfileDTO safe = new ProfileDTO();
+            safe.setUsername(dto.getUsername());
+            safe.setEmail(dto.getEmail());
 
             ra.addFlashAttribute("error", ex.getMessage());
             ra.addFlashAttribute("profileForm", safe);

@@ -1,7 +1,7 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.FriendForm;
-import com.openclassrooms.payMyBuddy.dto.TransferForm;
+import com.openclassrooms.payMyBuddy.dto.FriendDTO;
+import com.openclassrooms.payMyBuddy.dto.TransferDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.TransactionService;
@@ -90,8 +90,8 @@ class DashboardControllerTest {
         assertSame(me, model.getAttribute("me"));
         assertNotNull(model.getAttribute("friends"));
         assertNotNull(model.getAttribute("feed"));
-        assertTrue(model.getAttribute("friendForm") instanceof FriendForm);
-        assertTrue(model.getAttribute("transferForm") instanceof TransferForm);
+        assertTrue(model.getAttribute("friendForm") instanceof FriendDTO);
+        assertTrue(model.getAttribute("transferForm") instanceof TransferDTO);
 
         verify(currentUserService).requireEmail(auth);
         verify(userService).getUserByEmail("user@example.com");
@@ -103,7 +103,7 @@ class DashboardControllerTest {
     @Test
     void addFriend_whenAuthIsNull_throws() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
-        FriendForm form = new FriendForm();
+        FriendDTO form = new FriendDTO();
 
         when(currentUserService.requireEmail(null)).thenThrow(new IllegalStateException("Not authenticated"));
 
@@ -118,7 +118,7 @@ class DashboardControllerTest {
     @Test
     void addFriend_whenEmailBlank_redirectsWithError() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
-        FriendForm form = new FriendForm();
+        FriendDTO form = new FriendDTO();
         form.setEmail("   ");
         var auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
@@ -137,7 +137,7 @@ class DashboardControllerTest {
     @Test
     void addFriend_whenAddingSelf_redirectsWithError() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
-        FriendForm form = new FriendForm();
+        FriendDTO form = new FriendDTO();
         form.setEmail(" USER@EXAMPLE.COM ");
         var auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
@@ -156,7 +156,7 @@ class DashboardControllerTest {
     @Test
     void addFriend_success_callsService_andRedirectsWithSuccess() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
-        FriendForm form = new FriendForm();
+        FriendDTO form = new FriendDTO();
         form.setEmail("  FRIEND@Example.COM  ");
         var auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
@@ -176,7 +176,7 @@ class DashboardControllerTest {
     @Test
     void addFriend_whenServiceThrows_redirectsWithError() {
         RedirectAttributes ra = new RedirectAttributesModelMap();
-        FriendForm form = new FriendForm();
+        FriendDTO form = new FriendDTO();
         form.setEmail("friend@example.com");
         var auth = new TestingAuthenticationToken("user@example.com", "pwd");
 
@@ -208,7 +208,7 @@ class DashboardControllerTest {
 
         assertEquals("connections", view);
         assertSame(me, model.getAttribute("me"));
-        assertTrue(model.getAttribute("friendForm") instanceof FriendForm);
+        assertTrue(model.getAttribute("friendForm") instanceof FriendDTO);
         assertEquals("add", model.getAttribute("active"));
 
         verify(currentUserService).requireEmail(auth);

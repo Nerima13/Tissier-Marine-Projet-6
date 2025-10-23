@@ -92,7 +92,7 @@ public class UserService {
     public BigDecimal deposit(Integer userId, BigDecimal amount) {
         if (userId == null) throw new IllegalArgumentException("User id must not be null.");
 
-        walletService.topUp(userId, amount, UUID.randomUUID().toString(), "Deposit");
+        walletService.topUp(userId, amount, "Deposit");
         // Reload the user to return the updated balance
         return getBalance(userId);
     }
@@ -110,8 +110,11 @@ public class UserService {
         User receiver = userRepository.findByEmail(recEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Receiver not found : " + recEmail));
 
-        return walletService.transferP2P(senderId, receiver.getId(), amount, UUID.randomUUID().toString(),
-                (description == null || description.trim().isEmpty()) ? ("Transfer to " + receiver.getEmail()) : description.trim());
+        String desc = (description == null || description.trim().isEmpty())
+                ? ("Transfer to " + receiver.getEmail())
+                : description.trim();
+
+        return walletService.transferP2P(senderId, receiver.getId(), amount, desc);
     }
 
     // 5) Connection management

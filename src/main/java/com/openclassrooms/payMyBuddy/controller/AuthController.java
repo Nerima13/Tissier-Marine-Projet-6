@@ -1,6 +1,6 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.RegisterForm;
+import com.openclassrooms.payMyBuddy.dto.RegisterDTO;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import org.springframework.stereotype.Controller;
@@ -21,35 +21,35 @@ public class AuthController {
     // Show the registration form
     @GetMapping("/register")
     public String showRegisterForm(Model model) {
-        model.addAttribute("form", new RegisterForm());
+        model.addAttribute("form", new RegisterDTO());
         return "register"; // => templates/register.html
     }
 
     // Handle the registration
     @PostMapping("/register")
-    public String register(@ModelAttribute("form") RegisterForm form, Model model) {
+    public String register(@ModelAttribute("form") RegisterDTO dto, Model model) {
 
         // 1) Basic required fields
-        if (form.getEmail() == null || form.getPassword() == null || form.getConfirmPassword() == null) {
+        if (dto.getEmail() == null || dto.getPassword() == null || dto.getConfirmPassword() == null) {
             model.addAttribute("error", "Please fill in all required fields.");
-            model.addAttribute("form", form);
+            model.addAttribute("form", dto);
             return "register";
         }
-        String email = form.getEmail().trim().toLowerCase();
-        String pwd   = form.getPassword().trim();
-        String pwd2  = form.getConfirmPassword().trim();
-        String username = form.getUsername() == null ? null : form.getUsername().trim();
+        String email = dto.getEmail().trim().toLowerCase();
+        String pwd = dto.getPassword().trim();
+        String pwd2 = dto.getConfirmPassword().trim();
+        String username = dto.getUsername() == null ? null : dto.getUsername().trim();
 
         if (email.isEmpty() || pwd.isEmpty() || pwd2.isEmpty()) {
             model.addAttribute("error", "Please fill in all required fields.");
-            model.addAttribute("form", form);
+            model.addAttribute("form", dto);
             return "register";
         }
 
         // 2) Passwords must match
         if (!pwd.equals(pwd2)) {
             model.addAttribute("error", "Passwords do not match.");
-            model.addAttribute("form", form);
+            model.addAttribute("form", dto);
             return "register";
         }
 
@@ -63,7 +63,7 @@ public class AuthController {
             userService.registerUser(u); // checks email uniqueness, sets balance=0.00, encodes password
         } catch (IllegalArgumentException ex) {
             model.addAttribute("error", ex.getMessage()); // "Email already used"
-            model.addAttribute("form", form);
+            model.addAttribute("form", dto);
             return "register";
         }
 

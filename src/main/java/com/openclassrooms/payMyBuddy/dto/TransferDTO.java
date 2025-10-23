@@ -9,9 +9,10 @@ import java.math.BigDecimal;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
-public class DepositForm {
+@Getter @Setter
+public class TransferDTO {
+
+    private String receiverEmail;
 
     private BigDecimal amount;
 

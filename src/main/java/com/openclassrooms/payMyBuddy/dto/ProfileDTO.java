@@ -8,7 +8,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter @Setter
-public class ProfileForm {
+public class ProfileDTO {
 
     private String username;
 

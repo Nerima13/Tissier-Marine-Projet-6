@@ -46,7 +46,4 @@ public class Transaction {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @Column(name = "idempotency_key", length = 65, unique = true)
-    private String idempotencyKey;    // avoids duplicate
 }

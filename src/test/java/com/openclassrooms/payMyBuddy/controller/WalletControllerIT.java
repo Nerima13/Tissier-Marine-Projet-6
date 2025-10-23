@@ -2,7 +2,6 @@ package com.openclassrooms.payMyBuddy.controller;
 
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
-import com.openclassrooms.payMyBuddy.service.TransactionService;
 import com.openclassrooms.payMyBuddy.service.UserService;
 import com.openclassrooms.payMyBuddy.service.WalletService;
 import org.junit.jupiter.api.Test;
