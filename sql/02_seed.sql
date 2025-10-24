@@ -21,7 +21,7 @@
 
 LOCK TABLES `transactions` WRITE;
 /*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
-INSERT INTO `transactions` VALUES (1,1,3,'Restaurant','2025-09-10 15:56:06','P2P_TRANSFER',10.00,0.05,10.00,NULL),(2,2,1,'Voyage','2025-09-10 15:56:06','P2P_TRANSFER',25.00,0.13,25.00,NULL),(3,3,1,'Billets de cinéma','2025-09-10 15:56:06','P2P_TRANSFER',8.00,0.04,8.00,NULL);
+INSERT INTO `transactions` VALUES (1,1,3,'Restaurant','2025-09-10 15:56:06','P2P_TRANSFER',10.00,0.05,10.00),(2,2,1,'Voyage','2025-09-10 15:56:06','P2P_TRANSFER',25.00,0.13,25.00),(3,3,1,'Billets de cinéma','2025-09-10 15:56:06','P2P_TRANSFER',8.00,0.04,8.00),(7,1,9,'Test appli','2025-10-17 10:01:06','P2P_TRANSFER',20.00,0.10,20.00),(9,100,1,NULL,'2025-10-23 15:22:05','TOP_UP',10.00,0.05,9.95),(10,100,1,NULL,'2025-10-23 15:22:14','TOP_UP',15.00,0.08,14.92),(11,100,4,NULL,'2025-10-23 15:23:19','TOP_UP',10.00,0.05,9.95);
 /*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -31,7 +31,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `user_connections` WRITE;
 /*!40000 ALTER TABLE `user_connections` DISABLE KEYS */;
-INSERT INTO `user_connections` VALUES (9,1),(1,9);
+INSERT INTO `user_connections` VALUES (9,1),(1,3),(1,9);
 /*!40000 ALTER TABLE `user_connections` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -41,7 +41,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'Laure','laure@gmail.com','$2a$10$PE.XUUKEFKHDdUp13pPleekQi36RElTX/VHVaCrKVt.ou0tG.F5um',40.00,0,NULL,NULL),(2,'Clara','clara@gmail.com','$2a$10$1QnwRK.t1O5JbTFAR9yTheQjcbZxZoKvWnP8EgEVVrDNxALFKHPL.',0.00,0,NULL,NULL),(3,'Luc','luc@gmail.com','$2a$10$7YptkJ.5Buoeb06hJi7puufc5G7Rb6I.HRoXebGnuA9AvMaaMJphu',0.00,0,NULL,NULL),(4,'Marine Tissier','elay1965@hotmail.fr','$2a$10$VYKgqQAJ9WmQASr.1LEv8OpYINZecOPTCEH6DarQamdAPl9MHSQfG',0.00,0,NULL,NULL),(9,'Marine','marine.tsr13@icloud.com','$2a$10$gsjcNlcdHJhHbq.2Mrya1Oek.mZtxLT47LYiDgQT2jClyJMgWCQ1u',10.00,0,NULL,NULL);
+INSERT INTO `users` VALUES (1,'Laure','laure@gmail.com','$2a$10$PE.XUUKEFKHDdUp13pPleekQi36RElTX/VHVaCrKVt.ou0tG.F5um',64.67,5,NULL,NULL,0),(2,'Clara','clara@gmail.com','$2a$10$1QnwRK.t1O5JbTFAR9yTheQjcbZxZoKvWnP8EgEVVrDNxALFKHPL.',0.00,0,NULL,NULL,0),(3,'Luc','luc@gmail.com','$2a$10$7YptkJ.5Buoeb06hJi7puufc5G7Rb6I.HRoXebGnuA9AvMaaMJphu',0.00,0,NULL,NULL,0),(4,'Marine Tissier','elay1965@hotmail.fr','$2a$10$VYKgqQAJ9WmQASr.1LEv8OpYINZecOPTCEH6DarQamdAPl9MHSQfG',9.95,1,NULL,NULL,0),(9,'Marine','marine.tsr13@icloud.com','$2a$10$gsjcNlcdHJhHbq.2Mrya1Oek.mZtxLT47LYiDgQT2jClyJMgWCQ1u',30.00,1,NULL,NULL,0),(100,'Bank','bank@gmail.com','$2a$10$XBgnRShit4JhgD5bqZYAUemsd3cGCuChtMOuSsHCIf/YWc44eZwvC',0.00,0,NULL,NULL,1);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -54,4 +54,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-17 10:59:05
+-- Dump completed on 2025-10-24 11:28:29

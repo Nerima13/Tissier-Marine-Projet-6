@@ -4,6 +4,7 @@ import com.openclassrooms.payMyBuddy.model.Transaction;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -19,53 +21,79 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final WalletService walletService;
 
+    // Mask email (ex: m***e@gmail.com)
+    private String maskEmail(String email) {
+        return (email == null) ? "unknown" : email.replaceAll("(^.).*(@.*$)", "$1***$2");
+    }
+
     // 1) Basic read operations
     public Iterable<User> getUsers() {
+        log.info("UserService.getUsers - list all users");
         return userRepository.findAll();
     }
 
     public Optional<User> getUserById(Integer id) {
-        if (id == null) throw new IllegalArgumentException("Id must not be null.");
+        if (id == null) {
+            log.warn("UserService.getUserById - null id");
+            throw new IllegalArgumentException("Id must not be null.");
+        }
+        log.info("UserService.getUserById - id={}", id);
         return userRepository.findById(id);
     }
 
     public Optional<User> getUserByEmail(String email) {
-        if (email == null) throw new IllegalArgumentException("Email must not be null.");
-        return userRepository.findByEmail(email.trim().toLowerCase());
+        if (email == null) {
+            log.warn("UserService.getUserByEmail - null email");
+            throw new IllegalArgumentException("Email must not be null.");
+        }
+        String norm = email.trim().toLowerCase();
+        log.info("UserService.getUserByEmail - email={}", maskEmail(norm));
+        return userRepository.findByEmail(norm);
     }
 
     // 2) Registration
     public User registerUser(User user) {
         if (user == null || user.getEmail() == null || user.getPassword() == null) {
+            log.warn("UserService.registerUser - missing fields");
             throw new IllegalArgumentException("User, email and password must not be null.");
         }
 
         String normalizedEmail = user.getEmail().trim().toLowerCase();
+        log.info("UserService.registerUser - attempt email={}", maskEmail(normalizedEmail));
+
         userRepository.findByEmail(normalizedEmail).ifPresent(u -> {
+            log.warn("UserService.registerUser - email already exists email={}", maskEmail(normalizedEmail));
             throw new IllegalArgumentException("This email already exists.");
         });
 
         user.setEmail(normalizedEmail);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setPassword(passwordEncoder.encode(user.getPassword())); // never log password
 
         BigDecimal balance = (user.getBalance() == null) ? BigDecimal.ZERO : user.getBalance();
-        user.setBalance(balance); // The rounding/scale will be handled by WalletService when money flows occur
+        user.setBalance(balance);
 
-        // If the username can be null from the DTO, ensure a default value
         if (user.getUsername() == null || user.getUsername().isBlank()) {
             user.setUsername(normalizedEmail);
         }
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        log.info("UserService.registerUser - success userId={} email={}", saved.getId(), maskEmail(saved.getEmail()));
+        return saved;
     }
 
     public User getOrCreateOAuth2User(String email, String name) {
-        if (email == null) throw new IllegalArgumentException("Email must not be null.");
+        if (email == null) {
+            log.warn("UserService.getOrCreateOAuth2User - null email");
+            throw new IllegalArgumentException("Email must not be null.");
+        }
 
         String normalizedEmail = email.trim().toLowerCase();
+        log.info("UserService.getOrCreateOAuth2User - lookup email={}", maskEmail(normalizedEmail));
 
         Optional<User> existing = userRepository.findByEmail(normalizedEmail);
         if (existing.isPresent()) {
+            log.info("UserService.getOrCreateOAuth2User - found userId={} email={}",
+                    existing.get().getId(), maskEmail(normalizedEmail));
             return existing.get();
         }
 
@@ -74,51 +102,63 @@ public class UserService {
         u.setUsername((name == null || name.trim().isEmpty()) ? normalizedEmail : name.trim());
         u.setPassword(UUID.randomUUID().toString()); // random password (prevents form-login usage)
 
-        return registerUser(u);
+        User created = registerUser(u);
+        log.info("UserService.getOrCreateOAuth2User - created userId={} email={}", created.getId(), maskEmail(created.getEmail()));
+        return created;
     }
 
     // 3) Balance
     public BigDecimal getBalance(Integer userId) {
+        if (userId == null) {
+            log.warn("UserService.getBalance - null userId");
+            throw new IllegalArgumentException("User id must not be null.");
+        }
+        log.info("UserService.getBalance - userId={}", userId);
         User u = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found : id = " + userId));
         return u.getBalance();
     }
 
     // 4) Money flows (delegated to WalletService)
-    /**
-     * Deposit (TOP_UP) with 0.5% fee (only the net amount is credited).
-     * Keeps the same signature (returns the updated balance).
-     */
     public BigDecimal deposit(Integer userId, BigDecimal amount) {
-        if (userId == null) throw new IllegalArgumentException("User id must not be null.");
-
+        if (userId == null) {
+            log.warn("UserService.deposit - null userId");
+            throw new IllegalArgumentException("User id must not be null.");
+        }
+        log.info("UserService.deposit - start userId={} amount={}", userId, amount);
         walletService.topUp(userId, amount, "Deposit");
-        // Reload the user to return the updated balance
-        return getBalance(userId);
+        BigDecimal balance = getBalance(userId);
+        log.info("UserService.deposit - success userId={} newBalance={}", userId, balance);
+        return balance;
     }
 
-    /**
-     * P2P transfer: the sender pays a 0.5% fee,
-     * the receiver gets the full (gross) amount.
-     * Keeps the same signature but aligns persistence with Transaction (gross/fee/net + type).
-     */
     public Transaction transfer(Integer senderId, String receiverEmail, BigDecimal amount, String description) {
-        if (senderId == null) throw new IllegalArgumentException("Sender id must not be null.");
-        if (receiverEmail == null) throw new IllegalArgumentException("Receiver email must not be null.");
+        if (senderId == null) {
+            log.warn("UserService.transfer - null senderId");
+            throw new IllegalArgumentException("Sender id must not be null.");
+        }
+        if (receiverEmail == null) {
+            log.warn("UserService.transfer - null receiverEmail");
+            throw new IllegalArgumentException("Receiver email must not be null.");
+        }
+
+        String recEmail = receiverEmail.trim().toLowerCase();
+        log.info("UserService.transfer - start fromId={} toEmail={} amount={}", senderId, maskEmail(recEmail), amount);
 
         // Load sender (to ensure it's not the Bank user)
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found : id = " + senderId));
 
         if (sender.isBank()) {
+            log.warn("UserService.transfer - bank user as sender senderId={}", senderId);
             throw new IllegalArgumentException("Bank user cannot participate in P2P transfers");
         }
 
-        String recEmail = receiverEmail.trim().toLowerCase();
         User receiver = userRepository.findByEmail(recEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Receiver not found : " + recEmail));
 
         if (receiver.isBank()) {
+            log.warn("UserService.transfer - bank user as receiver receiverId={}", receiver.getId());
             throw new IllegalArgumentException("Bank user cannot participate in P2P transfers");
         }
 
@@ -126,17 +166,25 @@ public class UserService {
                 ? ("Transfer to " + receiver.getEmail())
                 : description.trim();
 
-        return walletService.transferP2P(senderId, receiver.getId(), amount, desc);
+        Transaction tx = walletService.transferP2P(senderId, receiver.getId(), amount, desc);
+        log.info("UserService.transfer - success txId={} fromId={} toId={} amount={}",
+                tx.getId(), senderId, receiver.getId(), amount);
+        return tx;
     }
 
     // 5) Connection management
     public void addConnection(String ownerEmail, String friendEmail) {
         if (ownerEmail == null || friendEmail == null) {
+            log.warn("UserService.addConnection - null emails");
             throw new IllegalArgumentException("Emails must not be null.");
         }
         String meEmail = ownerEmail.trim().toLowerCase();
         String frEmail = friendEmail.trim().toLowerCase();
+
+        log.info("UserService.addConnection - owner={} friend={}", maskEmail(meEmail), maskEmail(frEmail));
+
         if (meEmail.equals(frEmail)) {
+            log.warn("UserService.addConnection - self connection owner={}", maskEmail(meEmail));
             throw new IllegalArgumentException("You cannot add yourself.");
         }
 
@@ -146,20 +194,27 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("Friend not found: " + frEmail));
 
         if (me.getConnections().contains(friend)) {
+            log.warn("UserService.addConnection - already connected ownerId={} friendId={}", me.getId(), friend.getId());
             throw new IllegalArgumentException("This user is already in your connections.");
         }
 
         me.addConnection(friend);
         userRepository.save(me);
+        log.info("UserService.addConnection - success ownerId={} friendId={}", me.getId(), friend.getId());
     }
 
     public void removeConnection(String ownerEmail, String friendEmail) {
         if (ownerEmail == null || friendEmail == null) {
+            log.warn("UserService.removeConnection - null emails");
             throw new IllegalArgumentException("Emails must not be null.");
         }
         String meEmail = ownerEmail.trim().toLowerCase();
         String frEmail = friendEmail.trim().toLowerCase();
+
+        log.info("UserService.removeConnection - owner={} friend={}", maskEmail(meEmail), maskEmail(frEmail));
+
         if (meEmail.equals(frEmail)) {
+            log.warn("UserService.removeConnection - self remove owner={}", maskEmail(meEmail));
             throw new IllegalArgumentException("You cannot remove yourself.");
         }
 
@@ -170,13 +225,20 @@ public class UserService {
 
         me.removeConnection(friend);
         userRepository.save(me);
+        log.info("UserService.removeConnection - success ownerId={} friendId={}", me.getId(), friend.getId());
     }
 
     // 6) Profile update
     public User updateProfile(String currentEmail, String newUsername, String newEmail,
                               String currentPassword, String newPassword, String confirmPassword) {
 
-        if (currentEmail == null) throw new IllegalArgumentException("Email must not be null.");
+        if (currentEmail == null) {
+            log.warn("UserService.updateProfile - null currentEmail");
+            throw new IllegalArgumentException("Email must not be null.");
+        }
+
+        log.info("UserService.updateProfile - start currentEmail={} newEmail={}",
+                maskEmail(currentEmail), maskEmail(newEmail));
 
         User me = getUserByEmail(currentEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentEmail));
@@ -193,6 +255,7 @@ public class UserService {
             if (!normalized.isBlank() && !normalized.equals(me.getEmail())) {
                 userRepository.findByEmail(normalized).ifPresent(other -> {
                     if (!other.getId().equals(me.getId())) {
+                        log.warn("UserService.updateProfile - email already exists newEmail={}", maskEmail(normalized));
                         throw new IllegalArgumentException("This email already exists.");
                     }
                 });
@@ -204,20 +267,26 @@ public class UserService {
         boolean wantsPwdChange = newPassword != null && !newPassword.isBlank();
         if (wantsPwdChange) {
             if (currentPassword == null || currentPassword.isBlank()) {
+                log.warn("UserService.updateProfile - missing current password");
                 throw new IllegalArgumentException("Please enter your current password.");
             }
             if (!passwordEncoder.matches(currentPassword, me.getPassword())) {
+                log.warn("UserService.updateProfile - current password mismatch userId={}", me.getId());
                 throw new IllegalArgumentException("Current password is incorrect.");
             }
             if (!newPassword.equals(confirmPassword)) {
+                log.warn("UserService.updateProfile - password confirmation mismatch userId={}", me.getId());
                 throw new IllegalArgumentException("Password confirmation does not match.");
             }
             if (newPassword.length() < 8) {
+                log.warn("UserService.updateProfile - new password too short userId={}", me.getId());
                 throw new IllegalArgumentException("New password must be at least 8 characters.");
             }
             me.setPassword(passwordEncoder.encode(newPassword));
         }
 
-        return userRepository.save(me);
+        User saved = userRepository.save(me);
+        log.info("UserService.updateProfile - success userId={} email={}", saved.getId(), maskEmail(saved.getEmail()));
+        return saved;
     }
 }

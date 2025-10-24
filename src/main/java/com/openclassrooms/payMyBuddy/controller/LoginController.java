@@ -1,6 +1,8 @@
 package com.openclassrooms.payMyBuddy.controller;
 
 import com.openclassrooms.payMyBuddy.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -11,6 +13,8 @@ import java.util.Map;
 
 @Controller
 public class LoginController {
+
+    private static final Logger log = LoggerFactory.getLogger(LoginController.class);
 
     private final UserService userService;
 
@@ -24,8 +28,10 @@ public class LoginController {
         if (authentication != null
                 && authentication.isAuthenticated()
                 && !(authentication instanceof AnonymousAuthenticationToken)) {
+            log.info("GET /login - already authenticated, redirect to /transfer");
             return "redirect:/transfer";
         }
+        log.info("GET /login - show login page");
         return "login"; // => templates/login.html
     }
 
@@ -33,6 +39,7 @@ public class LoginController {
     @GetMapping("/")
     public String home(Authentication authentication) {
         if (authentication == null) {
+            log.info("GET / - no authentication, redirect to /login");
             return "redirect:/login";
         }
 
@@ -49,7 +56,10 @@ public class LoginController {
                     email = e;
                 }
             }
+            String maskedEmail = (email == null) ? "unknown" : email.replaceAll("(^.).*(@.*$)", "$1***$2");
+
             if (email == null) { // without email we cannot create a user
+                log.info("GET / - OAuth2 login without email, redirect to /login");
                 return "redirect:/login";
             }
 
@@ -68,8 +78,18 @@ public class LoginController {
                 name = email; // safe fallback
             }
 
-            // Create or retrieve the user
-            userService.getOrCreateOAuth2User(email, name);
+            try {
+                log.info("GET / - OAuth2 user getOrCreate email={} name={}", maskedEmail, name);
+                userService.getOrCreateOAuth2User(email, name);
+                log.info("GET / - OAuth2 user ready email={}", maskedEmail);
+
+            } catch (Exception ex) {
+                log.error("GET / - OAuth2 processing failed email={}", maskedEmail, ex);
+                return "redirect:/login";
+            }
+
+        } else {
+            log.info("GET / - non-OAuth2 authentication, redirect to /transfer");
         }
 
         return "redirect:/transfer";
