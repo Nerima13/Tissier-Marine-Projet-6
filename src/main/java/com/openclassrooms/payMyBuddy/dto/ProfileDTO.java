@@ -19,4 +19,8 @@ public class ProfileDTO {
     private String newPassword;
 
     private String confirmPassword;
+
+    private String iban;
+
+    private String bic;
 }

@@ -474,4 +474,58 @@ class UserServiceTest {
                         "current", "short", "short"));
         verify(userRepository, never()).save(any());
     }
+
+    // IBAN/BIC update
+
+    @Test
+    void updateIbanBicByEmail_success_sanitizesAndSaves() {
+        // existing user
+        User u = buildUser(1, "me@e.com", "Me", "enc", "0");
+        when(userRepository.findByEmail("me@e.com")).thenReturn(Optional.of(u));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // mixed case + spaces -> should be trimmed, spaces removed, uppercased
+        User saved = service.updateIbanBicByEmail("  ME@E.com  ",
+                "  fr76 1234  5678 9012 3456 78  ",   // -> FR76123456789012345678
+                "  agrifrpp  ");                      // -> AGRIFRPP
+
+        assertEquals("FR76123456789012345678", saved.getIban());
+        assertEquals("AGRIFRPP", saved.getBic());
+        verify(userRepository).findByEmail("me@e.com"); // email normalized to lowercase
+        verify(userRepository).save(u);
+    }
+
+    @Test
+    void updateIbanBicByEmail_blankValues_turnIntoNull() {
+        User u = buildUser(1, "me@e.com", "Me", "enc", "0");
+        // start with some values to be overwritten to null
+        u.setIban("FRXXXX");
+        u.setBic("BICXXXX");
+        when(userRepository.findByEmail("me@e.com")).thenReturn(Optional.of(u));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        User saved = service.updateIbanBicByEmail("me@e.com", "   ", "\t  ");
+
+        assertNull(saved.getIban());
+        assertNull(saved.getBic());
+        verify(userRepository).save(u);
+    }
+
+    @Test
+    void updateIbanBicByEmail_nullEmail_throws() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.updateIbanBicByEmail(null, "FR76...", "AGRIFRPP"));
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void updateIbanBicByEmail_userNotFound_throws() {
+        when(userRepository.findByEmail("missing@e.com")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.updateIbanBicByEmail("  missing@E.com ", "FR76...", "AGRIFRPP"));
+
+        verify(userRepository).findByEmail("missing@e.com");
+        verify(userRepository, never()).save(any());
+    }
 }

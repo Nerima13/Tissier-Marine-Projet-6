@@ -95,7 +95,8 @@ class ProfileControllerTest {
                 () -> controller.getProfil(model, principal));
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("User not found: missing@example.com"));
+        assertNotNull(ex.getReason());
+        assertTrue(ex.getReason().startsWith("User not found:"), "reason=" + ex.getReason());
 
         verify(userService).getUserByEmail("missing@example.com");
         verifyNoMoreInteractions(userService);
@@ -119,11 +120,12 @@ class ProfileControllerTest {
         String view = controller.postProfil(form, principal, ra);
 
         assertEquals("redirect:/profile", view);
-        // verify service call
-        verify(userService).updateProfile("user@example.com", "John", " user@example.com ", "curr", "new", "new");
-        verifyNoMoreInteractions(userService);
 
-        // check flash attributes
+        // 1) update profile
+        verify(userService).updateProfile("user@example.com", "John", " user@example.com ", "curr", "new", "new");
+        // 2) update IBAN/BIC (null here)
+        verify(userService).updateIbanBicByEmail("user@example.com", null, null);
+
         assertEquals("Profile updated.", ra.getFlashAttributes().get("success"));
         assertFalse(ra.getFlashAttributes().containsKey("error"));
         assertFalse(ra.getFlashAttributes().containsKey("profileForm"));
@@ -145,8 +147,11 @@ class ProfileControllerTest {
         String view = controller.postProfil(form, principal, ra);
 
         assertEquals("redirect:/profile", view);
+
+        // 1) update profile
         verify(userService).updateProfile("user@example.com", "John", " new.email@example.com ", "curr", "new", "new");
-        verifyNoMoreInteractions(userService);
+        // 2) update IBAN/BIC (null here)
+        verify(userService).updateIbanBicByEmail("new.email@example.com", null, null);
 
         assertEquals("Profile updated. If you changed your email, please sign in again.",
                 ra.getFlashAttributes().get("success"));

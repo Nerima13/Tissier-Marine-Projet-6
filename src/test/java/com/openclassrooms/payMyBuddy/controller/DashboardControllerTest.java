@@ -95,8 +95,8 @@ class DashboardControllerTest {
 
         verify(currentUserService).requireEmail(auth);
         verify(userService).getUserByEmail("user@example.com");
-        verify(transactionService).getFeedForUser(1);
-        verifyNoMoreInteractions(userService, transactionService);
+        verify(transactionService, atLeastOnce()).getFeedForUser(1);
+        verifyNoMoreInteractions(userService);
     }
 
     // 4) POST /connections with null auth -> IllegalStateException

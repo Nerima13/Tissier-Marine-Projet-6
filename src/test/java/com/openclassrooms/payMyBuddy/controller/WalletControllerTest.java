@@ -1,8 +1,7 @@
 package com.openclassrooms.payMyBuddy.controller;
 
-import com.openclassrooms.payMyBuddy.dto.DepositDTO;
 import com.openclassrooms.payMyBuddy.dto.TransferDTO;
-import com.openclassrooms.payMyBuddy.dto.WithdrawDTO;
+import com.openclassrooms.payMyBuddy.model.TransactionType;
 import com.openclassrooms.payMyBuddy.model.User;
 import com.openclassrooms.payMyBuddy.service.CurrentUserService;
 import com.openclassrooms.payMyBuddy.service.UserService;
@@ -20,7 +19,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 import java.math.BigDecimal;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -33,128 +32,172 @@ class WalletControllerTest {
 
     @InjectMocks WalletController controller;
 
-    // DEPOSIT
+    // TOP UP
 
-    // Deposit success → service called, flash success message, redirect to /transfer
     @Test
-    void deposit_success() {
+    void handleTransfer_topUp_success() {
         Authentication auth = new TestingAuthenticationToken("user@example.com", "pwd");
         RedirectAttributes ra = new RedirectAttributesModelMap();
 
         when(currentUserService.requireEmail(auth)).thenReturn("user@example.com");
-        User user = new User(); user.setId(1); user.setEmail("user@example.com");
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
+        User me = new User(); me.setId(1); me.setEmail("user@example.com");
+        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
 
-        DepositDTO form = new DepositDTO();
-        form.setAmount(new BigDecimal("100"));
-        form.setDescription("Deposit test");
+        TransferDTO dto = new TransferDTO();
+        dto.setAmount(new BigDecimal("100"));
+        dto.setDescription("Deposit test");
 
-        String view = controller.deposit(form, auth, ra);
+        String view = controller.handleTransfer(TransactionType.TOP_UP, dto, auth, ra);
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Deposit completed (0.5% fee applied).", ra.getFlashAttributes().get("success"));
         verify(walletService).topUp(eq(1), eq(new BigDecimal("100")), eq("Deposit test"));
+        verifyNoMoreInteractions(walletService);
     }
 
-    // Deposit failure → service throws, flash error message, redirect to /transfer
     @Test
-    void deposit_failure() {
+    void handleTransfer_topUp_businessError() {
         Authentication auth = new TestingAuthenticationToken("user@example.com", "pwd");
         RedirectAttributes ra = new RedirectAttributesModelMap();
 
         when(currentUserService.requireEmail(auth)).thenReturn("user@example.com");
-        User user = new User(); user.setId(1); user.setEmail("user@example.com");
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
+        User me = new User(); me.setId(1); me.setEmail("user@example.com");
+        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
 
-        DepositDTO form = new DepositDTO();
-        form.setAmount(new BigDecimal("50"));
-        form.setDescription("Fail test");
+        TransferDTO dto = new TransferDTO();
+        dto.setAmount(new BigDecimal("50"));
+        dto.setDescription("Fail deposit");
 
         doThrow(new IllegalArgumentException("Deposit failed"))
-                .when(walletService).topUp(eq(1), eq(new BigDecimal("50")), eq("Fail test"));
+                .when(walletService).topUp(eq(1), eq(new BigDecimal("50")), eq("Fail deposit"));
 
-        String view = controller.deposit(form, auth, ra);
+        String view = controller.handleTransfer(TransactionType.TOP_UP, dto, auth, ra);
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Deposit failed", ra.getFlashAttributes().get("error"));
     }
 
-    // WITHDRAW
-
-    // Withdraw success → service called, flash success message, redirect to /transfer
     @Test
-    void withdraw_success() {
+    void handleTransfer_topUp_unexpectedError() {
         Authentication auth = new TestingAuthenticationToken("user@example.com", "pwd");
         RedirectAttributes ra = new RedirectAttributesModelMap();
 
         when(currentUserService.requireEmail(auth)).thenReturn("user@example.com");
-        User user = new User(); user.setId(2); user.setEmail("user@example.com");
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
+        User me = new User(); me.setId(1); me.setEmail("user@example.com");
+        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
 
-        WithdrawDTO form = new WithdrawDTO();
-        form.setAmount(new BigDecimal("20"));
-        form.setDescription("Withdraw test");
+        TransferDTO dto = new TransferDTO();
+        dto.setAmount(new BigDecimal("10"));
+        dto.setDescription("Boom");
 
-        String view = controller.withdraw(form, auth, ra);
+        doThrow(new RuntimeException("boom"))
+                .when(walletService).topUp(eq(1), eq(new BigDecimal("10")), eq("Boom"));
+
+        String view = controller.handleTransfer(TransactionType.TOP_UP, dto, auth, ra);
+
+        assertEquals("redirect:/transfer", view);
+        assertEquals("Unexpected error, please try again.", ra.getFlashAttributes().get("error"));
+    }
+
+    // WITHDRAWAL
+
+    @Test
+    void handleTransfer_withdraw_success() {
+        Authentication auth = new TestingAuthenticationToken("user@example.com", "pwd");
+        RedirectAttributes ra = new RedirectAttributesModelMap();
+
+        when(currentUserService.requireEmail(auth)).thenReturn("user@example.com");
+        User me = new User(); me.setId(2); me.setEmail("user@example.com");
+        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
+
+        TransferDTO dto = new TransferDTO();
+        dto.setAmount(new BigDecimal("20"));
+        dto.setDescription("Withdraw test");
+
+        String view = controller.handleTransfer(TransactionType.WITHDRAWAL, dto, auth, ra);
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Withdrawal initiated (0.5% fee applied).", ra.getFlashAttributes().get("success"));
         verify(walletService).withdrawToBank(eq(2), eq(new BigDecimal("20")), eq("Withdraw test"));
+        verifyNoMoreInteractions(walletService);
     }
 
-    // Withdraw failure → service throws, flash error message
     @Test
-    void withdraw_failure() {
+    void handleTransfer_withdraw_businessError() {
         Authentication auth = new TestingAuthenticationToken("user@example.com", "pwd");
         RedirectAttributes ra = new RedirectAttributesModelMap();
 
         when(currentUserService.requireEmail(auth)).thenReturn("user@example.com");
-        User user = new User(); user.setId(2); user.setEmail("user@example.com");
-        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
+        User me = new User(); me.setId(2); me.setEmail("user@example.com");
+        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(me));
 
-        WithdrawDTO form = new WithdrawDTO();
-        form.setAmount(new BigDecimal("200"));
-        form.setDescription("Fail withdraw");
+        TransferDTO dto = new TransferDTO();
+        dto.setAmount(new BigDecimal("200"));
+        dto.setDescription("Fail withdraw");
 
         doThrow(new IllegalArgumentException("Withdraw failed"))
                 .when(walletService).withdrawToBank(eq(2), eq(new BigDecimal("200")), eq("Fail withdraw"));
 
-        String view = controller.withdraw(form, auth, ra);
+        String view = controller.handleTransfer(TransactionType.WITHDRAWAL, dto, auth, ra);
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Withdraw failed", ra.getFlashAttributes().get("error"));
     }
 
-    // TRANSFER
+    // P2P TRANSFER
 
-    // Transfer success → service called, flash success message, redirect
     @Test
-    void transfer_success() {
+    void handleTransfer_p2p_success_whenTypeNull() {
         Authentication auth = new TestingAuthenticationToken("sender@example.com", "pwd");
         RedirectAttributes ra = new RedirectAttributesModelMap();
 
         when(currentUserService.requireEmail(auth)).thenReturn("sender@example.com");
+
         User sender = new User(); sender.setId(1); sender.setEmail("sender@example.com");
         User receiver = new User(); receiver.setId(2); receiver.setEmail("receiver@example.com");
 
         when(userService.getUserByEmail("sender@example.com")).thenReturn(Optional.of(sender));
         when(userService.getUserByEmail("receiver@example.com")).thenReturn(Optional.of(receiver));
 
-        TransferDTO form = new TransferDTO();
-        form.setReceiverEmail("receiver@example.com");
-        form.setAmount(new BigDecimal("10"));
-        form.setDescription("Transfer test");
+        TransferDTO dto = new TransferDTO();
+        dto.setReceiverEmail("receiver@example.com");
+        dto.setAmount(new BigDecimal("10"));
+        dto.setDescription("Transfer test");
 
-        String view = controller.transfer(form, auth, ra);
+        // type = null -> P2P
+        String view = controller.handleTransfer(null, dto, auth, ra);
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Transfer sent (0.5% fee paid by the sender).", ra.getFlashAttributes().get("success"));
         verify(walletService).transferP2P(eq(1), eq(2), eq(new BigDecimal("10")), eq("Transfer test"));
+        verifyNoMoreInteractions(walletService);
     }
 
-    // Transfer failure → receiver not found → flash "Receiver not found"
     @Test
-    void transfer_receiverNotFound() {
+    void handleTransfer_p2p_missingReceiverEmail() {
+        Authentication auth = new TestingAuthenticationToken("sender@example.com", "pwd");
+        RedirectAttributes ra = new RedirectAttributesModelMap();
+
+        when(currentUserService.requireEmail(auth)).thenReturn("sender@example.com");
+        User sender = new User(); sender.setId(1); sender.setEmail("sender@example.com");
+        when(userService.getUserByEmail("sender@example.com")).thenReturn(Optional.of(sender));
+
+        TransferDTO dto = new TransferDTO();
+        dto.setReceiverEmail(null); // manquant
+        dto.setAmount(new BigDecimal("5"));
+        dto.setDescription("No receiver");
+
+        String view = controller.handleTransfer(null, dto, auth, ra);
+
+        assertEquals("redirect:/transfer", view);
+        assertEquals("Receiver email is required for a P2P transfer.", ra.getFlashAttributes().get("error"));
+
+        // Le service wallet ne doit pas être appelé
+        verifyNoInteractions(walletService);
+    }
+
+    @Test
+    void handleTransfer_p2p_receiverNotFound() {
         Authentication auth = new TestingAuthenticationToken("sender@example.com", "pwd");
         RedirectAttributes ra = new RedirectAttributesModelMap();
 
@@ -163,12 +206,12 @@ class WalletControllerTest {
         when(userService.getUserByEmail("sender@example.com")).thenReturn(Optional.of(sender));
         when(userService.getUserByEmail("missing@example.com")).thenReturn(Optional.empty());
 
-        TransferDTO form = new TransferDTO();
-        form.setReceiverEmail("missing@example.com");
-        form.setAmount(new BigDecimal("5"));
-        form.setDescription("Receiver missing");
+        TransferDTO dto = new TransferDTO();
+        dto.setReceiverEmail("missing@example.com");
+        dto.setAmount(new BigDecimal("5"));
+        dto.setDescription("Receiver missing");
 
-        String view = controller.transfer(form, auth, ra);
+        String view = controller.handleTransfer(null, dto, auth, ra);
 
         assertEquals("redirect:/transfer", view);
         assertEquals("Receiver not found", ra.getFlashAttributes().get("error"));

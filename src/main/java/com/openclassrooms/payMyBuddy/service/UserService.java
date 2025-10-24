@@ -289,4 +289,38 @@ public class UserService {
         log.info("UserService.updateProfile - success userId={} email={}", saved.getId(), maskEmail(saved.getEmail()));
         return saved;
     }
+
+    // 6bis) IBAN / BIC update (email-based)
+    public User updateIbanBicByEmail(String email, String iban, String bic) {
+        if (email == null) {
+            log.warn("UserService.updateIbanBicByEmail - null email");
+            throw new IllegalArgumentException("Email must not be null.");
+        }
+        String normEmail = email.trim().toLowerCase();
+        log.info("UserService.updateIbanBicByEmail - start email={}", maskEmail(normEmail));
+
+        User u = userRepository.findByEmail(normEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + normEmail));
+
+        // Sanitize IBAN (trim -> remove spaces -> uppercase; blank -> null)
+        String cleanIban = iban;
+        if (cleanIban != null) {
+            cleanIban = cleanIban.trim().replaceAll("\\s+", "").toUpperCase();
+            if (cleanIban.isBlank()) cleanIban = null;
+        }
+
+        // Sanitize BIC (trim -> remove spaces -> uppercase; blank -> null)
+        String cleanBic = bic;
+        if (cleanBic != null) {
+            cleanBic = cleanBic.trim().replaceAll("\\s+", "").toUpperCase();
+            if (cleanBic.isBlank()) cleanBic = null;
+        }
+
+        u.setIban(cleanIban);
+        u.setBic(cleanBic);
+
+        User saved = userRepository.save(u);
+        log.info("UserService.updateIbanBicByEmail - success userId={} email={}", saved.getId(), maskEmail(saved.getEmail()));
+        return saved;
+    }
 }

@@ -43,11 +43,13 @@ public class ProfileController {
 
         model.addAttribute("me", me);
 
-        // If coming back from a redirect with errors/success, keep the existing form
+        // Pre-fill the modal form
         if (!model.containsAttribute("profileForm")) {
             ProfileDTO dto = new ProfileDTO();
             dto.setUsername(me.getUsername());
             dto.setEmail(me.getEmail());
+            dto.setIban(me.getIban());
+            dto.setBic(me.getBic());
             model.addAttribute("profileForm", dto);
         }
         model.addAttribute("active", "profile");
@@ -58,7 +60,9 @@ public class ProfileController {
 
     // Handle profile update
     @PostMapping("/profile")
-    public String postProfil(@ModelAttribute("profileForm") ProfileDTO dto, Principal principal, RedirectAttributes ra) {
+    public String postProfil(@ModelAttribute("profileForm") ProfileDTO dto,
+                             Principal principal,
+                             RedirectAttributes ra) {
         String currentEmail = principal.getName();
         String maskedCurrent = (currentEmail == null) ? "unknown"
                 : currentEmail.replaceAll("(^.).*(@.*$)", "$1***$2");
@@ -77,10 +81,29 @@ public class ProfileController {
                     dto.getNewPassword(),
                     dto.getConfirmPassword());
 
+            // 2) IBAN/BIC: trim -> remove spaces -> upperCase ; empty -> null
+            String targetEmail = (dto.getEmail() != null && !dto.getEmail().trim().equalsIgnoreCase(currentEmail))
+                    ? dto.getEmail().trim()
+                    : currentEmail;
+
+            String iban = dto.getIban();
+            if (iban != null) {
+                iban = iban.trim().replaceAll("\\s+", "").toUpperCase();
+                if (iban.isBlank()) iban = null;
+            }
+
+            String bic = dto.getBic();
+            if (bic != null) {
+                bic = bic.trim().replaceAll("\\s+", "").toUpperCase();
+                if (bic.isBlank()) bic = null;
+            }
+
+            // Update via UserService
+            userService.updateIbanBicByEmail(targetEmail, iban, bic);
+
             if (dto.getEmail() != null && !dto.getEmail().trim().equalsIgnoreCase(currentEmail)) {
                 log.info("POST /profile - update success (email changed) by={} newEmail={}", maskedCurrent, maskedNew);
                 ra.addFlashAttribute("success", "Profile updated. If you changed your email, please sign in again.");
-
             } else {
                 log.info("POST /profile - update success (no email change) by={}", maskedCurrent);
                 ra.addFlashAttribute("success", "Profile updated.");
@@ -88,9 +111,12 @@ public class ProfileController {
 
         } catch (IllegalArgumentException ex) {
             log.info("POST /profile - business error by={} reason={}", maskedCurrent, ex.getMessage());
+
             ProfileDTO safe = new ProfileDTO();
             safe.setUsername(dto.getUsername());
             safe.setEmail(dto.getEmail());
+            safe.setIban(dto.getIban());
+            safe.setBic(dto.getBic());
 
             ra.addFlashAttribute("error", ex.getMessage());
             ra.addFlashAttribute("profileForm", safe);
