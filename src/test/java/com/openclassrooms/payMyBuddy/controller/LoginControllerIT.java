@@ -67,7 +67,7 @@ public class LoginControllerIT {
         Map<String, Object> attrs = new HashMap<>();
         attrs.put("id", "123");                    // principal name attribute
         attrs.put("email", "John.Doe@example.com");
-        attrs.put("name", "John Doe");             // neutre (pas spécifique à Google)
+        attrs.put("name", "John Doe");
 
         List<GrantedAuthority> roles = List.of(new SimpleGrantedAuthority("ROLE_USER"));
 

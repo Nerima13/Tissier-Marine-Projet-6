@@ -192,7 +192,7 @@ class WalletControllerTest {
         assertEquals("redirect:/transfer", view);
         assertEquals("Receiver email is required for a P2P transfer.", ra.getFlashAttributes().get("error"));
 
-        // Le service wallet ne doit pas être appelé
+        // The walletService should not be called
         verifyNoInteractions(walletService);
     }
 

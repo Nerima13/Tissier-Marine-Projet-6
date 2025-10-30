@@ -71,9 +71,9 @@ public class TransactionServiceTest {
 
         Transaction result = transactionService.save(input);
 
-        verify(transactionRepository).save(input); // vérifie l’appel
+        verify(transactionRepository).save(input); // verifies the call
         assertNotNull(result);
-        assertEquals(1, result.getId()); // vérifie le retour
+        assertEquals(1, result.getId()); // verifies the return
     }
 
     @Test
